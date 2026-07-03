@@ -1,0 +1,478 @@
+'use client'
+import { useEffect, useState, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
+import { fetchShop } from '@/lib/shop'
+import { useCart } from '@/lib/cart'
+import { supabase } from '@/lib/supabase'
+import { Shop } from '@/lib/types'
+import { useLocation } from '@/lib/location'
+import { listAddresses } from '@/lib/addresses'
+import { cn, formatPrice, distanceKm, formatDistance } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { BrandLoader } from '@/components/BrandLoader'
+import {
+  ArrowLeft, User, Phone, MapPin, FileText, Truck, Store,
+  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation,
+} from 'lucide-react'
+import type { User as SupaUser } from '@supabase/supabase-js'
+
+const COUPONS: Record<string, { pct: number; max: number; label: string }> = {
+  LOCAL10: { pct: 10, max: 50, label: '10% off (up to ₹50)' },
+  FRESH15: { pct: 15, max: 80, label: '15% off (up to ₹80)' },
+}
+
+function StepDot({ done, active, label, num }: { done: boolean; active: boolean; label: string; num: number }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className={cn(
+        'size-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300',
+        done ? 'bg-primary text-primary-foreground'
+          : active ? 'bg-primary/10 border-2 border-primary text-primary'
+          : 'bg-muted text-muted-foreground',
+      )}>
+        {done ? <CheckCircle size={16} /> : num}
+      </div>
+      <span className={cn('text-[11px] font-medium', done || active ? 'text-primary' : 'text-muted-foreground')}>{label}</span>
+    </div>
+  )
+}
+
+export default function CheckoutPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
+  const router = useRouter()
+  const [shop, setShop] = useState<Shop | null>(null)
+  const [user, setUser] = useState<SupaUser | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [placing, setPlacing] = useState(false)
+  const [error, setError] = useState('')
+  const orderPlaced = useRef(false)
+
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [note, setNote] = useState('')
+  const [wantsDelivery, setWantsDelivery] = useState(false)
+  const [payment, setPayment] = useState<'cod' | 'store'>('cod')
+  const [couponInput, setCouponInput] = useState('')
+  const [coupon, setCoupon] = useState<string | null>(null)
+  const [couponMsg, setCouponMsg] = useState('')
+
+  const cart = useCart(slug, shop?.shop_name)
+  const { selected, setSelected } = useLocation()
+
+  useEffect(() => {
+    (async () => {
+      const [s, { data: sessionData }] = await Promise.all([
+        fetchShop(slug),
+        supabase.auth.getSession(),
+      ])
+      if (!sessionData.session) { router.replace(`/auth?redirect=/${slug}/checkout`); return }
+      setShop(s)
+      setUser(sessionData.session.user)
+      const authPhone = sessionData.session.user.phone ?? ''
+      if (authPhone) setPhone(authPhone.replace('+91', '').replace(/\D/g, ''))
+
+      // Prefill from the chosen / default saved address for a faster checkout.
+      const saved = await listAddresses()
+      const active = saved.find(a => a.id === selected?.addressId) ?? saved.find(a => a.is_default)
+      if (active) {
+        if (active.receiver_name) setName(active.receiver_name)
+        if (active.receiver_phone) setPhone(active.receiver_phone.replace(/\D/g, ''))
+        if (s?.delivery_enabled) {
+          setAddress(active.formatted_address)
+          setWantsDelivery(true)
+        }
+        if (!selected) setSelected({
+          addressId: active.id, label: active.label, formatted_address: active.formatted_address,
+          area: active.area, city: active.city, pincode: active.pincode,
+          latitude: active.latitude, longitude: active.longitude,
+        })
+      } else if (selected?.formatted_address && s?.delivery_enabled) {
+        setAddress(selected.formatted_address)
+        setWantsDelivery(true)
+      }
+      setLoading(false)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug])
+
+  // Keep the address field in sync when the user switches location via the picker.
+  useEffect(() => {
+    if (selected?.formatted_address && shop?.delivery_enabled) {
+      setAddress(selected.formatted_address)
+      if (!outOfDeliveryRange) setWantsDelivery(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.addressId, selected?.formatted_address])
+
+  useEffect(() => {
+    if (!loading && shop && cart.count === 0 && !orderPlaced.current) router.replace(`/${slug}`)
+  }, [loading, shop, cart.count, slug, router])
+
+  const distanceToShop = selected?.latitude != null && selected?.longitude != null
+    && shop?.latitude != null && shop?.longitude != null
+    ? distanceKm({ latitude: selected.latitude, longitude: selected.longitude }, { latitude: shop.latitude, longitude: shop.longitude })
+    : null
+  const outOfDeliveryRange = !!shop?.delivery_enabled && shop?.delivery_radius_km != null
+    && distanceToShop != null && distanceToShop > shop.delivery_radius_km
+
+  // If the customer's location puts them outside this shop's delivery radius, force pickup.
+  useEffect(() => {
+    if (outOfDeliveryRange && wantsDelivery) setWantsDelivery(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outOfDeliveryRange])
+
+  if (loading || !shop) return <BrandLoader label="Loading checkout…" />
+
+  const deliveryFee = wantsDelivery && shop.delivery_enabled ? shop.delivery_fee : 0
+  const subtotal = cart.total
+  const discount = coupon
+    ? Math.min(COUPONS[coupon].max, Math.round((subtotal * COUPONS[coupon].pct) / 100))
+    : 0
+  const total = Math.max(0, subtotal + deliveryFee - discount)
+  const belowMin = shop.min_order_amount > 0 && subtotal < shop.min_order_amount
+  const canPlace = !placing && !belowMin && !!name.trim()
+    && phone.replace(/\D/g, '').length >= 10
+    && (!wantsDelivery || !!address.trim())
+
+  const applyCoupon = () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code) return
+    if (COUPONS[code]) { setCoupon(code); setCouponMsg('') }
+    else { setCoupon(null); setCouponMsg('Invalid coupon code') }
+  }
+
+  const handlePlaceOrder = async () => {
+    if (!name.trim()) { setError('Please enter your name.'); return }
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) { setError('Enter a valid 10-digit phone number.'); return }
+    if (wantsDelivery && !address.trim()) { setError('Please enter your delivery address.'); return }
+    if (belowMin) { setError(`Minimum order is ${formatPrice(shop.min_order_amount)}.`); return }
+
+    setError('')
+    setPlacing(true)
+
+    const items = cart.items.map(i => ({
+      productId: i.productId,
+      productName: i.name,
+      quantity: i.quantity,
+      unitPrice: i.price,
+      totalPrice: i.price * i.quantity,
+    }))
+
+    const noteParts = [note.trim()]
+    noteParts.push(`Payment: ${payment === 'cod' ? 'Cash on delivery' : 'Pay at store'}`)
+    if (coupon) noteParts.push(`Coupon ${coupon} (−${formatPrice(discount)})`)
+    const finalNote = noteParts.filter(Boolean).join(' · ')
+
+    const { data, error: err } = await supabase
+      .from('online_orders')
+      .insert({
+        shop_id: shop.id,
+        customer_user_id: user?.id ?? null,
+        customer_name: name.trim(),
+        customer_phone: phone.trim(),
+        customer_address: wantsDelivery ? address.trim() : null,
+        items,
+        subtotal,
+        delivery_fee: deliveryFee,
+        total,
+        status: 'pending',
+        note: finalNote || null,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      })
+      .select('id')
+      .single()
+
+    setPlacing(false)
+    if (err || !data) { setError('Could not place order. Please try again.'); return }
+
+    orderPlaced.current = true
+    cart.clearCart()
+    router.replace(`/${slug}/order/${data.id}`)
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 glass border-b border-border">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 h-14">
+            <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1">
+              <ArrowLeft size={18} />
+            </Button>
+            <div>
+              <h1 className="font-bold text-base leading-tight text-foreground">Checkout</h1>
+              <p className="text-xs text-muted-foreground">{shop.shop_name}</p>
+            </div>
+          </div>
+          <div className="flex items-center pb-4 relative">
+            <div className="absolute left-[10%] right-[10%] top-4 h-px bg-border -z-0" />
+            <div className="relative z-10 flex items-start justify-between w-full">
+              <StepDot done active={false} label="Cart" num={1} />
+              <StepDot done={false} active label="Details" num={2} />
+              <StepDot done={false} active={false} label="Confirm" num={3} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
+          {/* Left: form */}
+          <div className="space-y-4">
+            {/* Details */}
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+              <div>
+                <h2 className="font-bold text-base text-foreground">Your Details</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">So the shop can prepare and reach you about your order</p>
+              </div>
+              <div className="space-y-3">
+                <div className="relative">
+                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Input placeholder="Full name *" value={name} onChange={e => setName(e.target.value)} className="pl-10" />
+                </div>
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Input placeholder="Phone number *" value={phone} onChange={e => setPhone(e.target.value)} type="tel" inputMode="numeric" className="pl-10" />
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery */}
+            {shop.delivery_enabled && (
+              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn('size-10 rounded-xl flex items-center justify-center transition-all', wantsDelivery ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+                      <Truck size={18} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-foreground">Home Delivery</p>
+                      <p className="text-xs text-muted-foreground">
+                        {outOfDeliveryRange
+                          ? 'Not available at your location'
+                          : shop.delivery_fee > 0 ? `+${formatPrice(shop.delivery_fee)} charge` : 'Free delivery'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => !outOfDeliveryRange && setWantsDelivery(v => !v)}
+                    role="switch"
+                    aria-checked={wantsDelivery}
+                    disabled={outOfDeliveryRange}
+                    className={cn(
+                      'w-11 h-6 rounded-full relative transition-all shrink-0',
+                      outOfDeliveryRange ? 'bg-muted cursor-not-allowed' : wantsDelivery ? 'bg-primary' : 'bg-border',
+                    )}
+                  >
+                    <span className={cn('absolute top-0.5 size-5 bg-white rounded-full shadow-sm transition-all', wantsDelivery ? 'left-[22px]' : 'left-0.5')} />
+                  </button>
+                </div>
+                {outOfDeliveryRange && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 p-3">
+                    <AlertCircle size={15} className="mt-0.5 shrink-0 text-warning" />
+                    <p className="text-xs text-warning">
+                      You're {formatDistance(distanceToShop!)} away — outside this shop's {shop.delivery_radius_km} km delivery range. Pickup from store is available below.
+                    </p>
+                  </div>
+                )}
+                {!outOfDeliveryRange && wantsDelivery && (
+                  <div className="space-y-2.5 animate-fade-in">
+                    {address.trim() ? (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
+                        <MapPin size={15} className="mt-0.5 shrink-0 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          {selected?.label && <p className="text-xs font-bold text-primary">{selected.label}</p>}
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{address.trim()}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 p-3">
+                        <AlertCircle size={15} className="mt-0.5 shrink-0 text-warning" />
+                        <p className="text-xs text-warning">
+                          No delivery location selected. Choose your location from the header to continue.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment */}
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Wallet size={15} className="text-muted-foreground" />
+                <p className="font-bold text-sm text-foreground">Payment Method</p>
+              </div>
+              <RadioGroup value={payment} onValueChange={v => setPayment(v as 'cod' | 'store')} className="gap-2">
+                <Label htmlFor="pay-cod" className={cn('flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all duration-200', payment === 'cod' ? 'border-primary bg-primary/5 shadow-soft' : 'border-border hover:bg-muted')}>
+                  <RadioGroupItem value="cod" id="pay-cod" />
+                  <Banknote size={16} className="text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Cash on Delivery</span>
+                  {payment === 'cod' && <Check size={16} className="ml-auto text-primary animate-scale-in" />}
+                </Label>
+                <Label htmlFor="pay-store" className={cn('flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all duration-200', payment === 'store' ? 'border-primary bg-primary/5 shadow-soft' : 'border-border hover:bg-muted')}>
+                  <RadioGroupItem value="store" id="pay-store" />
+                  <Store size={16} className="text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Pay at Store</span>
+                  {payment === 'store' && <Check size={16} className="ml-auto text-primary animate-scale-in" />}
+                </Label>
+              </RadioGroup>
+            </div>
+
+            {/* Note */}
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-muted-foreground" />
+                <p className="font-bold text-sm text-foreground">Special Instructions</p>
+                <span className="text-xs text-muted-foreground">(optional)</span>
+              </div>
+              <Input placeholder="E.g. ring the doorbell twice…" value={note} onChange={e => setNote(e.target.value)} />
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2.5 p-3.5 rounded-2xl border border-destructive/25 bg-destructive/10 animate-fade-in">
+                <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">{error}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right: summary */}
+          <div className="space-y-4">
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-4 lg:sticky lg:top-[130px]">
+              <h2 className="font-bold text-base text-foreground">Order Summary</h2>
+
+              {/* Where this order is going */}
+              <div className="rounded-xl border border-border bg-muted/40 p-3">
+                {wantsDelivery ? (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin size={15} className="mt-0.5 shrink-0 text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                        Delivering to{selected?.label ? ` · ${selected.label}` : ''}
+                      </p>
+                      <p className="text-xs text-foreground leading-relaxed mt-0.5 whitespace-pre-wrap break-words">
+                        {address.trim() || 'Select your location from the header'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2.5">
+                    <Store size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Pickup at store</p>
+                      <p className="text-xs text-foreground leading-relaxed mt-0.5">
+                        {shop.address_text || shop.shop_name}
+                        {shop.delivery_enabled ? ' · Turn on Home Delivery to get it delivered' : ''}
+                      </p>
+                      {shop.latitude != null && shop.longitude != null && (
+                        <a
+                          href={`https://www.google.com/maps?q=${shop.latitude},${shop.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary mt-1.5"
+                        >
+                          <Navigation size={12} />
+                          Get directions
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                {cart.items.map(item => (
+                  <div key={item.productId} className="flex items-start gap-3">
+                    <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-[11px] font-black shrink-0 mt-0.5">{item.quantity}×</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate text-foreground">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatPrice(item.price)} each</p>
+                    </div>
+                    <p className="text-sm font-bold shrink-0 text-foreground">{formatPrice(item.price * item.quantity)}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              {/* Coupon */}
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Coupon code"
+                      value={couponInput}
+                      onChange={e => { setCouponInput(e.target.value); setCouponMsg('') }}
+                      className="pl-9 h-9 text-sm uppercase"
+                    />
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={applyCoupon} className="h-9">Apply</Button>
+                </div>
+                {coupon && (
+                  <p className="text-xs text-success font-medium flex items-center gap-1"><Check size={12} /> {coupon} applied — {COUPONS[coupon].label}</p>
+                )}
+                {couponMsg && <p className="text-xs text-destructive font-medium">{couponMsg}</p>}
+                {!coupon && !couponMsg && <p className="text-[11px] text-muted-foreground">Try <span className="font-semibold">LOCAL10</span> or <span className="font-semibold">FRESH15</span></p>}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal ({cart.count} items)</span>
+                  <span className="font-semibold text-foreground">{formatPrice(subtotal)}</span>
+                </div>
+                {wantsDelivery && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1"><Truck size={12} /> Delivery</span>
+                    <span className={cn('font-semibold', shop.delivery_fee === 0 ? 'text-success' : 'text-foreground')}>{shop.delivery_fee > 0 ? formatPrice(deliveryFee) : 'Free'}</span>
+                  </div>
+                )}
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1"><Tag size={12} /> Discount</span>
+                    <span className="font-semibold text-success">−{formatPrice(discount)}</span>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-base text-foreground">Total</span>
+                <span className="font-black text-xl text-primary tracking-tight">{formatPrice(total)}</span>
+              </div>
+              {discount > 0 && (
+                <p className="text-xs text-success font-semibold text-right -mt-1">
+                  You save <span key={discount} className="inline-block animate-count">{formatPrice(discount)}</span> 🎉
+                </p>
+              )}
+
+              {belowMin && (
+                <div className="text-xs rounded-xl px-3 py-2.5 font-medium border border-warning/25 bg-warning/10 text-warning">
+                  Add {formatPrice(shop.min_order_amount - subtotal)} more to reach the minimum order of {formatPrice(shop.min_order_amount)}.
+                </div>
+              )}
+
+              <Button className={cn('w-full gap-2 h-11', canPlace && 'animate-pulse-ready')} size="lg" onClick={handlePlaceOrder} disabled={placing || belowMin}>
+                {placing ? <><Loader2 size={17} className="animate-spin" /> Placing order…</> : <><CheckCircle size={17} /> Place Order · {formatPrice(total)}</>}
+              </Button>
+
+              <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                By placing your order you agree to the shop&apos;s terms and conditions.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
