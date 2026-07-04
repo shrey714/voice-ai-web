@@ -91,24 +91,39 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       const authPhone = sessionData.session.user.phone ?? ''
       if (authPhone) setPhone(authPhone.replace('+91', '').replace(/\D/g, ''))
 
-      // Prefill from the chosen / default saved address for a faster checkout.
       const saved = await listAddresses()
-      const active = saved.find(a => a.id === selected?.addressId) ?? saved.find(a => a.is_default)
-      if (active) {
-        if (active.receiver_name) setName(active.receiver_name)
-        if (active.receiver_phone) setPhone(active.receiver_phone.replace(/\D/g, ''))
-        if (s?.delivery_enabled) {
-          setAddress(active.formatted_address)
+
+      if (selected) {
+        // Respect whatever's already selected app-wide (header/shop page) —
+        // a saved address, "Use current location", or a search result, all
+        // of which set addressId: null — instead of silently swapping in an
+        // unrelated default saved address underneath the customer. This also
+        // keeps the delivery-range check (computed from `selected`'s actual
+        // coordinates) and the address text sent to the shop pointing at the
+        // same place.
+        if (selected.formatted_address && s?.delivery_enabled) {
+          setAddress(selected.formatted_address)
           setWantsDelivery(true)
         }
-        if (!selected) setSelected({
-          addressId: active.id, label: active.label, formatted_address: active.formatted_address,
-          area: active.area, city: active.city, pincode: active.pincode,
-          latitude: active.latitude, longitude: active.longitude,
-        })
-      } else if (selected?.formatted_address && s?.delivery_enabled) {
-        setAddress(selected.formatted_address)
-        setWantsDelivery(true)
+        const linked = saved.find(a => a.id === selected.addressId)
+        if (linked?.receiver_name) setName(linked.receiver_name)
+        if (linked?.receiver_phone) setPhone(linked.receiver_phone.replace(/\D/g, ''))
+      } else {
+        // Nothing selected anywhere yet — prefill from the default saved address.
+        const active = saved.find(a => a.is_default)
+        if (active) {
+          if (active.receiver_name) setName(active.receiver_name)
+          if (active.receiver_phone) setPhone(active.receiver_phone.replace(/\D/g, ''))
+          if (s?.delivery_enabled) {
+            setAddress(active.formatted_address)
+            setWantsDelivery(true)
+          }
+          setSelected({
+            addressId: active.id, label: active.label, formatted_address: active.formatted_address,
+            area: active.area, city: active.city, pincode: active.pincode,
+            latitude: active.latitude, longitude: active.longitude,
+          })
+        }
       }
       setLoading(false)
     })()
