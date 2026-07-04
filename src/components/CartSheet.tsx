@@ -1,5 +1,6 @@
 'use client'
 import { useCart } from '@/lib/cart'
+import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { Shop } from '@/lib/types'
 import { formatPrice } from '@/lib/utils'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -7,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
-import { ShoppingCart, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
+import { ShoppingCart, Minus, Plus, Trash2, ArrowRight, Clock } from 'lucide-react'
 
 interface CartSheetProps {
   cart: ReturnType<typeof useCart>
@@ -20,6 +21,10 @@ interface CartSheetProps {
 export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetProps) {
   const subtotal = cart.total
   const belowMin = shop.min_order_amount > 0 && subtotal < shop.min_order_amount
+  // Items can sit in the cart across a browser restart, well past whenever the
+  // shop closed — re-check live status here instead of trusting the cart's
+  // mere presence as permission to check out.
+  const shopOpen = useIsShopOpen(shop)
 
   return (
     <Sheet open={open} onOpenChange={o => !o && onClose()}>
@@ -90,8 +95,13 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
                   Add {formatPrice(shop.min_order_amount - subtotal)} more to reach the minimum order.
                 </p>
               )}
+              {!shopOpen && (
+                <p className="flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-2 font-medium bg-warning/12 text-warning border border-warning/25">
+                  <Clock size={13} className="shrink-0" /> This shop is currently closed and can&apos;t take orders right now.
+                </p>
+              )}
             </div>
-            <Button className="w-full gap-2 h-11 text-[15px]" onClick={onCheckout} disabled={belowMin}>
+            <Button className="w-full gap-2 h-11 text-[15px]" onClick={onCheckout} disabled={belowMin || !shopOpen}>
               Checkout · {formatPrice(subtotal + (shop.delivery_enabled ? shop.delivery_fee : 0))}
               <ArrowRight size={16} />
             </Button>
