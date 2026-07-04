@@ -2,18 +2,18 @@
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
+import { cn, safeRedirectPath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Phone, ArrowLeft, ShieldCheck, RotateCcw,
-  ChevronRight, Loader2, Store, Check, AlertCircle,
+  ChevronRight, Loader2, Store, Check, AlertCircle, Lock,
 } from 'lucide-react'
 
 function AuthForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') ?? '/'
+  const redirectTo = safeRedirectPath(searchParams.get('redirect'))
 
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', ''])
@@ -27,7 +27,7 @@ function AuthForm() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace(redirectTo)
     })
-  }, [])
+  }, [router, redirectTo])
 
   useEffect(() => {
     if (countdown <= 0) return
@@ -58,12 +58,16 @@ function AuthForm() {
 
   const otpString = otp.join('')
 
-  const verifyOtp = async () => {
-    if (otpString.length !== 6) { setError('Enter the 6-digit code.'); return }
+  // Accepts the code explicitly so auto-submit can pass the fresh value instead
+  // of reading `otpString` from a stale render closure (which was still 5 digits
+  // at the moment the 6th was typed → a spurious "Enter the 6-digit code" error).
+  const verifyOtp = async (code?: string) => {
+    const value = code ?? otpString
+    if (value.length !== 6) { setError('Enter the 6-digit code.'); return }
     setError('')
     setLoading(true)
     const { error: err } = await supabase.auth.verifyOtp({
-      phone: formatPhone(phone), token: otpString, type: 'sms',
+      phone: formatPhone(phone), token: value, type: 'sms',
     })
     setLoading(false)
     if (err) { setError(err.message); return }
@@ -76,7 +80,8 @@ function AuthForm() {
     next[index] = digit
     setOtp(next)
     if (digit && index < 5) otpRefs.current[index + 1]?.focus()
-    if (next.join('').length === 6) setTimeout(() => verifyOtp(), 100)
+    const joined = next.join('')
+    if (joined.length === 6) verifyOtp(joined)
   }
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -89,7 +94,7 @@ function AuthForm() {
     const next = [...otp]
     pasted.split('').forEach((ch, i) => { if (i < 6) next[i] = ch })
     setOtp(next)
-    if (pasted.length === 6) setTimeout(() => verifyOtp(), 100)
+    if (pasted.length === 6) verifyOtp(pasted)
     else otpRefs.current[pasted.length]?.focus()
   }
 
@@ -143,7 +148,7 @@ function AuthForm() {
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-2">Mobile Number</label>
                   <div className="flex gap-2">
                     <div className="flex items-center gap-1.5 bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground shrink-0 select-none">
-                      🇮🇳 +91
+                      +91
                     </div>
                     <Input
                       type="tel"
@@ -159,7 +164,7 @@ function AuthForm() {
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-destructive/25 bg-destructive/10 text-destructive animate-fade-in">
+                  <div role="alert" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-destructive/25 bg-destructive/10 text-destructive animate-fade-in">
                     <AlertCircle size={14} className="shrink-0" /> {error}
                   </div>
                 )}
@@ -181,8 +186,10 @@ function AuthForm() {
                         ref={el => { otpRefs.current[i] = el }}
                         type="tel"
                         inputMode="numeric"
+                        autoComplete={i === 0 ? 'one-time-code' : 'off'}
                         maxLength={1}
                         value={digit}
+                        aria-label={`Verification code digit ${i + 1} of 6`}
                         onChange={e => handleOtpChange(i, e.target.value)}
                         onKeyDown={e => handleOtpKeyDown(i, e)}
                         className={cn(
@@ -196,12 +203,12 @@ function AuthForm() {
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-destructive/25 bg-destructive/10 text-destructive animate-fade-in">
+                  <div role="alert" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium border border-destructive/25 bg-destructive/10 text-destructive animate-fade-in">
                     <AlertCircle size={14} className="shrink-0" /> {error}
                   </div>
                 )}
 
-                <Button className="w-full gap-2" size="lg" onClick={verifyOtp} disabled={loading || otpString.length !== 6}>
+                <Button className="w-full gap-2" size="lg" onClick={() => verifyOtp()} disabled={loading || otpString.length !== 6}>
                   {loading ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
                   {loading ? 'Verifying…' : 'Verify & Continue'}
                 </Button>
@@ -210,7 +217,7 @@ function AuthForm() {
                   {countdown > 0 ? (
                     <p className="text-xs text-muted-foreground">Resend code in <span className="font-bold text-foreground">{countdown}s</span></p>
                   ) : (
-                    <Button variant="ghost" size="sm" onClick={() => { setOtp(['', '', '', '', '', '']); sendOtp() }} className="gap-1.5 text-sm">
+                    <Button variant="ghost" size="sm" onClick={() => { setOtp(['', '', '', '', '', '']); otpRefs.current[0]?.focus(); sendOtp() }} className="gap-1.5 text-sm">
                       <RotateCcw size={13} /> Resend OTP
                     </Button>
                   )}
@@ -219,9 +226,9 @@ function AuthForm() {
             )}
           </div>
 
-          <p className="text-center text-xs text-muted-foreground leading-relaxed px-4">
-            🔒 Your number is used only for order verification.<br />
-            We never share your data.
+          <p className="text-center text-xs text-muted-foreground leading-relaxed px-4 flex items-center justify-center gap-1.5">
+            <Lock size={12} className="shrink-0" />
+            <span>Your number is used only for order verification. We never share your data.</span>
           </p>
         </div>
       </div>

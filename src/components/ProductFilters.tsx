@@ -11,7 +11,7 @@ export interface FilterState {
   rating: number
   inStockOnly: boolean
   freeDeliveryOnly: boolean
-  sortBy: 'relevance' | 'price-asc' | 'price-desc' | 'rating' | 'newest'
+  sortBy: 'relevance' | 'price-asc' | 'price-desc' | 'rating'
 }
 
 interface ProductFiltersProps {
@@ -40,6 +40,10 @@ export function ProductFilters({
       [section]: !prev[section],
     }))
   }
+
+  // Scale the slider step to the catalog's price range so a shop selling ₹5–₹200
+  // items doesn't get a slider whose smallest move (₹100) skips most products.
+  const priceStep = maxPrice > 2000 ? 100 : maxPrice > 500 ? 50 : 10
 
   const hasActiveFilters =
     filters.priceRange[0] > 0 ||
@@ -108,7 +112,6 @@ export function ProductFilters({
               { value: 'price-asc' as const, label: 'Price: Low to High' },
               { value: 'price-desc' as const, label: 'Price: High to Low' },
               { value: 'rating' as const, label: 'Highest Rated' },
-              { value: 'newest' as const, label: 'Newest First' },
             ].map(option => (
               <label
                 key={option.value}
@@ -159,7 +162,7 @@ export function ProductFilters({
                 type="range"
                 min={0}
                 max={maxPrice}
-                step={100}
+                step={priceStep}
                 value={filters.priceRange[0]}
                 onChange={e => {
                   const newMin = Number(e.target.value)
@@ -181,7 +184,7 @@ export function ProductFilters({
                 type="range"
                 min={0}
                 max={maxPrice}
-                step={100}
+                step={priceStep}
                 value={filters.priceRange[1]}
                 onChange={e => {
                   const newMax = Number(e.target.value)
@@ -220,6 +223,18 @@ export function ProductFilters({
 
         {expandedSections.rating && (
           <div className="space-y-1.5 pl-2">
+            {/* "Any" is explicit — a radio can't be un-checked by re-clicking it,
+                so without this the rating floor could be raised but never cleared. */}
+            <label className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-muted transition-colors">
+              <input
+                type="radio"
+                name="rating"
+                checked={filters.rating === 0}
+                onChange={() => onFiltersChange({ ...filters, rating: 0 })}
+                className="cursor-pointer"
+              />
+              <span className="text-sm text-muted-foreground">Any rating</span>
+            </label>
             {[4, 3, 2, 1].map(rating => (
               <label
                 key={rating}
@@ -229,17 +244,12 @@ export function ProductFilters({
                   type="radio"
                   name="rating"
                   checked={filters.rating === rating}
-                  onChange={() =>
-                    onFiltersChange({
-                      ...filters,
-                      rating: filters.rating === rating ? 0 : rating,
-                    })
-                  }
+                  onChange={() => onFiltersChange({ ...filters, rating })}
                   className="cursor-pointer"
                 />
                 <div className="flex items-center gap-1">
                   <span className="text-sm text-muted-foreground">{rating}★</span>
-                  <span className="text-xs text-muted-foreground">& up</span>
+                  <span className="text-xs text-muted-foreground">&amp; up</span>
                 </div>
               </label>
             ))}

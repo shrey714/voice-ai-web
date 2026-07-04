@@ -5,6 +5,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Only allow same-origin relative paths for post-auth redirects. Rejects
+ * absolute URLs, protocol-relative ("//evil.com") and non-http(s) schemes
+ * (javascript:, data:) so `?redirect=` can't be used as an open redirect.
+ */
+export function safeRedirectPath(raw: string | null | undefined, fallback = '/'): string {
+  if (!raw) return fallback
+  if (!raw.startsWith('/') || raw.startsWith('//')) return fallback
+  try {
+    // Resolving against a fixed base surfaces any embedded scheme/host trick
+    // (e.g. "/\evil.com", "/%2F%2Fevil.com") that startsWith() alone would miss.
+    const resolved = new URL(raw, 'https://internal.invalid')
+    if (resolved.origin !== 'https://internal.invalid') return fallback
+    return resolved.pathname + resolved.search + resolved.hash
+  } catch {
+    return fallback
+  }
+}
+
 export function formatPrice(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return '₹—'
   return '₹' + n.toFixed(2).replace(/\.00$/, '')

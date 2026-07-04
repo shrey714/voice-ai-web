@@ -1,35 +1,49 @@
-import Link from 'next/link'
-import { Store } from 'lucide-react'
-import { fetchShop, fetchProducts } from '@/lib/shop'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
+import { getCachedShop, getCachedProducts } from '@/lib/shop'
+import { SITE_URL } from '@/lib/site'
 import { ShopClient } from './ShopClient'
 
-// Catalog is per-request (stock/price/visibility change) — no static caching.
-export const dynamic = 'force-dynamic'
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  const shop = await getCachedShop(slug)
+  if (!shop) return { title: 'Shop not found' }
+
+  const description = shop.description?.trim() || `Order from ${shop.shop_name} — fresh, fast, and delivered to your door.`
+  return {
+    title: shop.shop_name,
+    description,
+    alternates: { canonical: `/${slug}` },
+    openGraph: { title: shop.shop_name, description, url: `/${slug}`, type: 'website' },
+    twitter: { card: 'summary', title: shop.shop_name, description },
+  }
+}
 
 export default async function ShopPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
-  const shop = await fetchShop(slug)
-  if (!shop) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <EmptyState
-          icon={Store}
-          title="Shop not found"
-          description="This link is invalid or the shop has been removed."
-          action={
-            <Button asChild variant="secondary">
-              <Link href="/">← Back to Shops</Link>
-            </Button>
-          }
-        />
-      </div>
-    )
+  const shop = await getCachedShop(slug)
+  if (!shop) notFound()
+
+  const products = await getCachedProducts(shop.id)
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: shop.shop_name,
+    description: shop.description || undefined,
+    url: `${SITE_URL}/${slug}`,
+    address: shop.address_text ? { '@type': 'PostalAddress', streetAddress: shop.address_text } : undefined,
+    geo: shop.latitude != null && shop.longitude != null
+      ? { '@type': 'GeoCoordinates', latitude: shop.latitude, longitude: shop.longitude }
+      : undefined,
   }
 
-  const products = await fetchProducts(shop.id)
-
-  return <ShopClient slug={slug} shop={shop} products={products} />
+  return (
+    <>
+      {/* Escape "<" so a shop name/description containing "</script>" can't break out of the tag. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <ShopClient slug={slug} shop={shop} products={products} />
+    </>
+  )
 }

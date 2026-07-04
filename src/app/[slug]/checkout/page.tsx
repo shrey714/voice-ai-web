@@ -8,15 +8,17 @@ import { Shop } from '@/lib/types'
 import { useLocation } from '@/lib/location'
 import { listAddresses } from '@/lib/addresses'
 import { cn, formatPrice, distanceKm, formatDistance } from '@/lib/utils'
+import { checkoutSchema } from '@/lib/validation/checkout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { BrandLoader } from '@/components/BrandLoader'
+import { LocationPicker } from '@/components/LocationPicker'
 import {
   ArrowLeft, User, Phone, MapPin, FileText, Truck, Store,
-  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation,
+  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation, Pencil,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
 
@@ -60,9 +62,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const [couponInput, setCouponInput] = useState('')
   const [coupon, setCoupon] = useState<string | null>(null)
   const [couponMsg, setCouponMsg] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
 
   const cart = useCart(slug, shop?.shop_name)
   const { selected, setSelected } = useLocation()
+
+  const clearFieldError = (field: string) =>
+    setFieldErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
 
   useEffect(() => {
     (async () => {
@@ -135,8 +144,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
     : 0
   const total = Math.max(0, subtotal + deliveryFee - discount)
   const belowMin = shop.min_order_amount > 0 && subtotal < shop.min_order_amount
-  const canPlace = !placing && !belowMin && !!name.trim()
-    && phone.replace(/\D/g, '').length >= 10
+  const canPlace = !placing && !belowMin && name.trim().length >= 2
+    && phone.replace(/\D/g, '').length === 10
     && (!wantsDelivery || !!address.trim())
 
   const applyCoupon = () => {
@@ -147,13 +156,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   }
 
   const handlePlaceOrder = async () => {
-    if (!name.trim()) { setError('Please enter your name.'); return }
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) { setError('Enter a valid 10-digit phone number.'); return }
-    if (wantsDelivery && !address.trim()) { setError('Please enter your delivery address.'); return }
+    // Guard against a fast double-tap (common on mobile) placing two orders:
+    // `placing` only flips true after sync validation below, so without this a
+    // second click could re-enter before the button re-renders as disabled.
+    if (placing || orderPlaced.current) return
     if (belowMin) { setError(`Minimum order is ${formatPrice(shop.min_order_amount)}.`); return }
-
-    setError('')
-    setPlacing(true)
 
     const items = cart.items.map(i => ({
       productId: i.productId,
@@ -163,7 +170,31 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       totalPrice: i.price * i.quantity,
     }))
 
-    const noteParts = [note.trim()]
+    const parsed = checkoutSchema.safeParse({
+      name, phone, wantsDelivery, address, note, items, subtotal, deliveryFee, total,
+    })
+    if (!parsed.success) {
+      // Map every issue to its field so each input can show an associated,
+      // announced error — not just a single generic banner.
+      const errs: Record<string, string> = {}
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0] ?? 'form')
+        if (!errs[key]) errs[key] = issue.message
+      }
+      setFieldErrors(errs)
+      setError(parsed.error.issues[0].message)
+      // Send the user straight to the first problem.
+      if (errs.name) nameRef.current?.focus()
+      else if (errs.phone) phoneRef.current?.focus()
+      else if (errs.address) setPickerOpen(true)
+      return
+    }
+
+    setFieldErrors({})
+    setError('')
+    setPlacing(true)
+
+    const noteParts = [parsed.data.note ?? '']
     noteParts.push(`Payment: ${payment === 'cod' ? 'Cash on delivery' : 'Pay at store'}`)
     if (coupon) noteParts.push(`Coupon ${coupon} (−${formatPrice(discount)})`)
     const finalNote = noteParts.filter(Boolean).join(' · ')
@@ -173,13 +204,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       .insert({
         shop_id: shop.id,
         customer_user_id: user?.id ?? null,
-        customer_name: name.trim(),
-        customer_phone: phone.trim(),
-        customer_address: wantsDelivery ? address.trim() : null,
-        items,
-        subtotal,
-        delivery_fee: deliveryFee,
-        total,
+        customer_name: parsed.data.name,
+        customer_phone: parsed.data.phone,
+        customer_address: wantsDelivery ? parsed.data.address : null,
+        items: parsed.data.items,
+        subtotal: parsed.data.subtotal,
+        delivery_fee: parsed.data.deliveryFee,
+        total: parsed.data.total,
         status: 'pending',
         note: finalNote || null,
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
@@ -201,7 +232,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       <header className="sticky top-0 z-40 glass border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
-            <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1">
+            <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Go back">
               <ArrowLeft size={18} />
             </Button>
             <div>
@@ -221,7 +252,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
+        <form
+          onSubmit={e => { e.preventDefault(); handlePlaceOrder() }}
+          className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5"
+        >
           {/* Left: form */}
           <div className="space-y-4">
             {/* Details */}
@@ -231,13 +265,51 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                 <p className="text-xs text-muted-foreground mt-0.5">So the shop can prepare and reach you about your order</p>
               </div>
               <div className="space-y-3">
-                <div className="relative">
-                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <Input placeholder="Full name *" value={name} onChange={e => setName(e.target.value)} className="pl-10" />
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkout-name">Full name</Label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="checkout-name"
+                      ref={nameRef}
+                      name="name"
+                      autoComplete="name"
+                      autoCapitalize="words"
+                      placeholder="e.g. Aarav Sharma"
+                      value={name}
+                      onChange={e => { setName(e.target.value); clearFieldError('name') }}
+                      aria-invalid={!!fieldErrors.name}
+                      aria-describedby={fieldErrors.name ? 'checkout-name-error' : undefined}
+                      className="pl-10"
+                    />
+                  </div>
+                  {fieldErrors.name && (
+                    <p id="checkout-name-error" role="alert" className="text-xs font-medium text-destructive">{fieldErrors.name}</p>
+                  )}
                 </div>
-                <div className="relative">
-                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <Input placeholder="Phone number *" value={phone} onChange={e => setPhone(e.target.value)} type="tel" inputMode="numeric" className="pl-10" />
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkout-phone">Phone number</Label>
+                  <div className="relative">
+                    <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="checkout-phone"
+                      ref={phoneRef}
+                      name="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                      value={phone}
+                      onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); clearFieldError('phone') }}
+                      aria-invalid={!!fieldErrors.phone}
+                      aria-describedby={fieldErrors.phone ? 'checkout-phone-error' : undefined}
+                      className="pl-10"
+                    />
+                  </div>
+                  {fieldErrors.phone && (
+                    <p id="checkout-phone-error" role="alert" className="text-xs font-medium text-destructive">{fieldErrors.phone}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -260,9 +332,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => !outOfDeliveryRange && setWantsDelivery(v => !v)}
                     role="switch"
                     aria-checked={wantsDelivery}
+                    aria-label="Home delivery"
                     disabled={outOfDeliveryRange}
                     className={cn(
                       'w-11 h-6 rounded-full relative transition-all shrink-0',
@@ -276,7 +350,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                   <div className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 p-3">
                     <AlertCircle size={15} className="mt-0.5 shrink-0 text-warning" />
                     <p className="text-xs text-warning">
-                      You're {formatDistance(distanceToShop!)} away — outside this shop's {shop.delivery_radius_km} km delivery range. Pickup from store is available below.
+                      You&apos;re {formatDistance(distanceToShop!)} away — outside this shop&apos;s {shop.delivery_radius_km} km delivery range. Pickup from store is available below.
                     </p>
                   </div>
                 )}
@@ -289,13 +363,21 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                           {selected?.label && <p className="text-xs font-bold text-primary">{selected.label}</p>}
                           <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{address.trim()}</p>
                         </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setPickerOpen(true)} className="shrink-0 -my-1 -mr-1 h-8 gap-1 text-xs">
+                          <Pencil size={12} /> Change
+                        </Button>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 p-3">
-                        <AlertCircle size={15} className="mt-0.5 shrink-0 text-warning" />
-                        <p className="text-xs text-warning">
-                          No delivery location selected. Choose your location from the header to continue.
-                        </p>
+                      <div className={cn('rounded-xl border p-3 space-y-2.5', fieldErrors.address ? 'border-destructive/30 bg-destructive/10' : 'border-warning/25 bg-warning/10')}>
+                        <div className="flex items-start gap-2.5">
+                          <AlertCircle size={15} className={cn('mt-0.5 shrink-0', fieldErrors.address ? 'text-destructive' : 'text-warning')} />
+                          <p id="checkout-address-error" role={fieldErrors.address ? 'alert' : undefined} className={cn('text-xs', fieldErrors.address ? 'text-destructive font-medium' : 'text-warning')}>
+                            {fieldErrors.address || 'Add a delivery address so the shop knows where to send your order.'}
+                          </p>
+                        </div>
+                        <Button type="button" size="sm" onClick={() => setPickerOpen(true)} className="w-full gap-1.5">
+                          <MapPin size={14} /> Choose delivery location
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -313,7 +395,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                 <Label htmlFor="pay-cod" className={cn('flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all duration-200', payment === 'cod' ? 'border-primary bg-primary/5 shadow-soft' : 'border-border hover:bg-muted')}>
                   <RadioGroupItem value="cod" id="pay-cod" />
                   <Banknote size={16} className="text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">Cash on Delivery</span>
+                  <span className="text-sm font-medium text-foreground">{wantsDelivery ? 'Cash on Delivery' : 'Pay in cash'}</span>
                   {payment === 'cod' && <Check size={16} className="ml-auto text-primary animate-scale-in" />}
                 </Label>
                 <Label htmlFor="pay-store" className={cn('flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all duration-200', payment === 'store' ? 'border-primary bg-primary/5 shadow-soft' : 'border-border hover:bg-muted')}>
@@ -327,16 +409,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
             {/* Note */}
             <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
-              <div className="flex items-center gap-2">
+              <Label htmlFor="checkout-note" className="flex items-center gap-2">
                 <FileText size={15} className="text-muted-foreground" />
-                <p className="font-bold text-sm text-foreground">Special Instructions</p>
-                <span className="text-xs text-muted-foreground">(optional)</span>
-              </div>
-              <Input placeholder="E.g. ring the doorbell twice…" value={note} onChange={e => setNote(e.target.value)} />
+                <span className="font-bold text-sm text-foreground">Special Instructions</span>
+                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Input id="checkout-note" name="note" maxLength={300} placeholder="E.g. ring the doorbell twice…" value={note} onChange={e => setNote(e.target.value)} />
             </div>
 
             {error && (
-              <div className="flex items-start gap-2.5 p-3.5 rounded-2xl border border-destructive/25 bg-destructive/10 animate-fade-in">
+              <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-2xl border border-destructive/25 bg-destructive/10 animate-fade-in">
                 <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" />
                 <p className="text-sm font-semibold text-destructive">{error}</p>
               </div>
@@ -408,13 +490,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                   <div className="relative flex-1">
                     <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     <Input
+                      aria-label="Coupon code"
                       placeholder="Coupon code"
                       value={couponInput}
                       onChange={e => { setCouponInput(e.target.value); setCouponMsg('') }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon() } }}
                       className="pl-9 h-9 text-sm uppercase"
                     />
                   </div>
-                  <Button variant="secondary" size="sm" onClick={applyCoupon} className="h-9">Apply</Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={applyCoupon} className="h-9">Apply</Button>
                 </div>
                 {coupon && (
                   <p className="text-xs text-success font-medium flex items-center gap-1"><Check size={12} /> {coupon} applied — {COUPONS[coupon].label}</p>
@@ -462,7 +546,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                 </div>
               )}
 
-              <Button className={cn('w-full gap-2 h-11', canPlace && 'animate-pulse-ready')} size="lg" onClick={handlePlaceOrder} disabled={placing || belowMin}>
+              {error && (
+                <p role="alert" className="text-xs font-medium text-destructive flex items-start gap-1.5">
+                  <AlertCircle size={13} className="mt-0.5 shrink-0" /> {error}
+                </p>
+              )}
+
+              <Button type="submit" className={cn('w-full gap-2 h-11', canPlace && 'animate-pulse-ready')} size="lg" disabled={placing || belowMin}>
                 {placing ? <><Loader2 size={17} className="animate-spin" /> Placing order…</> : <><CheckCircle size={17} /> Place Order · {formatPrice(total)}</>}
               </Button>
 
@@ -471,8 +561,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
               </p>
             </div>
           </div>
-        </div>
+        </form>
       </div>
+
+      {/* Inline delivery-location picker — writes to the shared location store,
+          which the sync effect above reads back into the address field. */}
+      <LocationPicker open={pickerOpen} onOpenChange={setPickerOpen} />
     </div>
   )
 }

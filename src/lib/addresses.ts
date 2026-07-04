@@ -22,15 +22,18 @@ export async function listAddresses(): Promise<CustomerAddress[]> {
   return (data ?? []) as CustomerAddress[];
 }
 
-/** Fetch a single address by id (RLS restricts it to the owner). */
-export async function getAddress(id: string): Promise<CustomerAddress | null> {
+/**
+ * Like listAddresses but distinguishes a load error from a genuinely empty list,
+ * so the UI can show a retry state instead of "no addresses yet" on failure.
+ */
+export async function fetchAddresses(): Promise<{ data: CustomerAddress[]; error: boolean }> {
   const { data, error } = await supabase
     .from('customer_addresses')
     .select('*')
-    .eq('id', id)
-    .single();
-  if (error) { console.error('getAddress', error); return null; }
-  return data as CustomerAddress;
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) { console.error('fetchAddresses', error); return { data: [], error: true }; }
+  return { data: (data ?? []) as CustomerAddress[], error: false };
 }
 
 /** Create a new address. If the user has none yet, it's made default. */

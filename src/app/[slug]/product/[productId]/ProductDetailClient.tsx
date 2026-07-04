@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import { isShopOpen } from '@/lib/shop'
 import { useCart } from '@/lib/cart'
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/carousel'
 import {
   ArrowLeft, Heart, Share2, ShoppingCart, Check, Package,
-  Truck, AlertCircle, Store, ShieldCheck, RotateCcw, Plus, Minus, Star, Bike,
+  Truck, AlertCircle, Store, ShieldCheck, RotateCcw, Plus, Minus, Star, Bike, Flame,
 } from 'lucide-react'
 
 const HIGHLIGHTS = [
@@ -47,9 +48,16 @@ function MiniProductCard({ product, slug }: { product: OnlineProduct; slug: stri
       onClick={() => vt.push(`/${slug}/product/${product.product_id}`)}
       className="group text-left rounded-2xl border border-border bg-card overflow-hidden w-40 shrink-0 transition-all hover:shadow-float hover:-translate-y-0.5"
     >
-      <div className="aspect-square bg-muted overflow-hidden">
+      <div className="relative aspect-square bg-muted overflow-hidden">
         {product.image_url && !imgErr ? (
-          <img src={product.image_url} alt={product.name} onError={() => setImgErr(true)} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            sizes="160px"
+            onError={() => setImgErr(true)}
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Package size={24} className="text-muted-foreground" /></div>
         )}
@@ -111,6 +119,14 @@ export function ProductDetailClient({
   const estimatedDays = seeded(product.product_id + 'e', 1, 3)
   const boughtToday = seeded(product.product_id + 'b', 8, 60)
   const lowStock = !outOfStock && product.quantity <= 5
+  // Computed once per mount rather than inline in JSX — Date.now() read directly during
+  // render is impure and, since this is a Client Component (server-rendered once, then
+  // hydrated), could disagree with the server's clock and trigger a hydration mismatch.
+  /* eslint-disable react-hooks/purity -- one-time-per-mount Date.now() read, see comment above */
+  const deliveryDateLabel = useMemo(() => (
+    new Date(Date.now() + estimatedDays * 86400000).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })
+  ), [estimatedDays])
+  /* eslint-enable react-hooks/purity */
 
   const similar = allProducts
     .filter(p => p.product_id !== product.product_id)
@@ -143,7 +159,8 @@ export function ProductDetailClient({
           <Button variant="ghost" size="icon-sm" onClick={() => vt.back()} className="-ml-1" aria-label="Go back">
             <ArrowLeft size={18} />
           </Button>
-          <h1 className="font-bold text-foreground flex-1 truncate text-sm sm:text-base">{product.name}</h1>
+          {/* Not an <h1>: the page's single <h1> is the product title in the details column below. */}
+          <p className="font-bold text-foreground flex-1 truncate text-sm sm:text-base" aria-hidden>{product.name}</p>
           <Button variant="ghost" size="icon-sm" onClick={handleShare} className="text-muted-foreground" aria-label="Share">
             <Share2 size={17} />
           </Button>
@@ -161,7 +178,14 @@ export function ProductDetailClient({
         <div className="md:sticky md:top-20 md:self-start space-y-3">
           <div className="aspect-square bg-muted rounded-3xl overflow-hidden relative group border border-border" style={{ viewTransitionName: 'product-hero' } as React.CSSProperties}>
             {product.image_url ? (
-              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center"><Package size={56} className="text-muted-foreground" /></div>
             )}
@@ -200,7 +224,7 @@ export function ProductDetailClient({
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <RatingStars rating={rating} count={reviewCount} size="md" />
               <span className="text-xs font-semibold text-primary flex items-center gap-1">
-                🔥 {boughtToday} bought in the last 24h
+                <Flame size={12} className="shrink-0" /> {boughtToday} bought in the last 24h
               </span>
             </div>
           </div>
@@ -231,7 +255,7 @@ export function ProductDetailClient({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Truck size={16} className="text-success" />
                 <span>Delivery by <span className="font-semibold text-foreground">
-                  {new Date(Date.now() + estimatedDays * 86400000).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  {deliveryDateLabel}
                 </span></span>
               </div>
               {freeDelivery && <p className="text-sm text-success font-semibold flex items-center gap-1.5"><Check size={14} /> Free delivery on this item</p>}
@@ -245,9 +269,9 @@ export function ProductDetailClient({
           {!outOfStock && (
             <div className="hidden md:flex items-center gap-4">
               <div className="flex items-center border border-border rounded-xl overflow-hidden">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Minus size={15} /></button>
-                <span className="px-4 py-2.5 font-bold text-foreground min-w-[48px] text-center">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Plus size={15} /></button>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Minus size={15} /></button>
+                <span className="px-4 py-2.5 font-bold text-foreground min-w-[48px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity" className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Plus size={15} /></button>
               </div>
               <Button size="lg" className="flex-1 gap-2 h-12 text-[15px]" onClick={handleAddToCart} disabled={!open}>
                 {added ? <><Check size={18} /> Added</> : open ? <><ShoppingCart size={18} /> Add to Cart</> : <><AlertCircle size={18} /> Shop Closed</>}
@@ -367,9 +391,9 @@ export function ProductDetailClient({
       {!outOfStock && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border p-3 flex items-center gap-3">
           <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card shrink-0">
-            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
-            <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center">{quantity}</span>
-            <button onClick={() => setQuantity(quantity + 1)} className="px-3 py-2.5 text-foreground"><Plus size={15} /></button>
+            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
+            <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
+            <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity" className="px-3 py-2.5 text-foreground"><Plus size={15} /></button>
           </div>
           <Button size="lg" className="flex-1 gap-2 h-12" onClick={handleAddToCart} disabled={!open}>
             {added ? <><Check size={18} /> Added</> : open ? <><ShoppingCart size={18} /> Add · {formatPrice(price * quantity)}</> : 'Shop Closed'}

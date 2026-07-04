@@ -1,6 +1,8 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import Image from 'next/image'
+import { toast } from 'sonner'
 import { useWishlist } from '@/lib/wishlist'
 import { cn, formatPrice } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,9 +20,18 @@ function WishCard({
   return (
     <div className="group relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1">
       <button onClick={onOpen} className="block w-full text-left">
-        <div className="aspect-square bg-muted overflow-hidden">
+        <div className="relative aspect-square bg-muted overflow-hidden">
           {item.image_url && !imgErr
-            ? <img src={item.image_url} alt={item.name} onError={() => setImgErr(true)} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+            ? (
+              <Image
+                src={item.image_url}
+                alt={item.name}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1280px) 25vw, 220px"
+                onError={() => setImgErr(true)}
+                className="object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+            )
             : <div className="w-full h-full flex items-center justify-center"><Package size={28} className="text-muted-foreground" /></div>}
         </div>
         <div className="p-3">
@@ -42,7 +53,7 @@ function WishCard({
 
 export default function WishlistPage() {
   const router = useRouter()
-  const { items, remove, count } = useWishlist()
+  const { items, remove, toggle, count } = useWishlist()
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,7 +85,12 @@ export default function WishlistPage() {
                 key={item.productId}
                 item={item}
                 onOpen={() => router.push(`/${item.slug}/product/${item.productId}`)}
-                onRemove={() => remove(item.productId)}
+                onRemove={() => {
+                  remove(item.productId)
+                  toast('Removed from wishlist', {
+                    action: { label: 'Undo', onClick: () => toggle(item) },
+                  })
+                }}
               />
             ))}
           </div>

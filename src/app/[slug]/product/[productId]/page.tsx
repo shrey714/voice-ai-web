@@ -1,11 +1,48 @@
-import Link from 'next/link'
-import { AlertCircle } from 'lucide-react'
-import { fetchShop, fetchProducts } from '@/lib/shop'
-import { Button } from '@/components/ui/button'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
+import { getCachedShop, getCachedProducts } from '@/lib/shop'
+import { SITE_URL } from '@/lib/site'
 import { ProductDetailClient } from './ProductDetailClient'
 
-// Product data is per-request (stock/price can change) — no static caching.
-export const dynamic = 'force-dynamic'
+async function loadProduct(slug: string, productId: string) {
+  const shop = await getCachedShop(slug)
+  const products = shop ? await getCachedProducts(shop.id) : []
+  const product = products.find(p => p.product_id === productId) ?? null
+  return { shop, products, product }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; productId: string }>
+}): Promise<Metadata> {
+  const { slug, productId } = await params
+  const { shop, product } = await loadProduct(slug, productId)
+  if (!shop || !product) return { title: 'Product not found' }
+
+  const price = product.online_price ?? product.store_price ?? 0
+  const description = `${product.name} — ${price > 0 ? `₹${price}` : 'available'} at ${shop.shop_name}. Order online for fast local delivery.`
+  const url = `/${slug}/product/${productId}`
+
+  return {
+    title: product.name,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: product.name,
+      description,
+      url,
+      type: 'website',
+      images: product.image_url ? [{ url: product.image_url }] : undefined,
+    },
+    twitter: {
+      card: product.image_url ? 'summary_large_image' : 'summary',
+      title: product.name,
+      description,
+      images: product.image_url ? [product.image_url] : undefined,
+    },
+  }
+}
 
 export default async function ProductDetailPage({
   params,
@@ -13,27 +50,33 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string; productId: string }>
 }) {
   const { slug, productId } = await params
+  const { shop, products, product } = await loadProduct(slug, productId)
 
-  const shop = await fetchShop(slug)
-  const products = shop ? await fetchProducts(shop.id) : []
-  const product = products.find(p => p.product_id === productId)
+  if (!shop || !product) notFound()
 
-  if (!shop || !product) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="text-center space-y-4">
-          <AlertCircle size={32} className="text-muted-foreground mx-auto" />
-          <p className="font-bold text-foreground">Product not found</p>
-          <p className="text-sm text-muted-foreground">This product may have been removed or is unavailable.</p>
-          <Button asChild variant="secondary" size="sm">
-            <Link href={shop ? `/${slug}` : '/'}>{shop ? 'Back to shop' : 'Back to shops'}</Link>
-          </Button>
-        </div>
-      </div>
-    )
+  const price = product.online_price ?? product.store_price ?? 0
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: product.image_url || undefined,
+    description: `${product.name} available at ${shop.shop_name}`,
+    offers: {
+      '@type': 'Offer',
+      price,
+      priceCurrency: 'INR',
+      availability: product.quantity > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url: `${SITE_URL}/${slug}/product/${productId}`,
+      seller: { '@type': 'LocalBusiness', name: shop.shop_name },
+    },
   }
 
   return (
-    <ProductDetailClient slug={slug} shop={shop} product={product} allProducts={products} />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <ProductDetailClient slug={slug} shop={shop} product={product} allProducts={products} />
+    </>
   )
 }

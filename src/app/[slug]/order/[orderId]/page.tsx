@@ -66,6 +66,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
   const router = useRouter()
   const [order, setOrder] = useState<OnlineOrder | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
 
   useEffect(() => {
@@ -78,7 +79,12 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
 
   useEffect(() => {
     supabase.from('online_orders').select('*').eq('id', orderId).single()
-      .then(({ data }) => { setOrder(data); setLoading(false) })
+      .then(({ data, error }) => {
+        if (error) console.error('[order-fetch]', error)
+        setOrder(data)
+        setLoadError(!!error)
+        setLoading(false)
+      })
 
     const channel = supabase
       .channel(`order-${orderId}`)
@@ -96,8 +102,18 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center space-y-4">
         <AlertCircle size={32} className="text-muted-foreground mx-auto" />
-        <p className="font-bold text-foreground">Order not found</p>
-        <Button variant="secondary" size="sm" onClick={() => router.push(`/${slug}`)}>Back to shop</Button>
+        <p className="font-bold text-foreground">{loadError ? "Couldn't load this order" : 'Order not found'}</p>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          {loadError
+            ? 'Something went wrong while fetching your order. Please try again.'
+            : "This order doesn't exist or may have been removed."}
+        </p>
+        <div className="flex items-center justify-center gap-2">
+          {loadError && (
+            <Button size="sm" onClick={() => window.location.reload()}>Retry</Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => router.push(`/${slug}`)}>Back to shop</Button>
+        </div>
       </div>
     </div>
   )
@@ -108,7 +124,14 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
   const isTerminal = ['completed', 'rejected', 'cancelled'].includes(order.status)
   const isFailed = ['rejected', 'cancelled'].includes(order.status)
   const isSuccess = meta.tone === 'success'
-  const currentStepIdx = STEPS.findIndex(s => s.key === order.status)
+  // Pickup orders have no delivery address — relabel so the timeline and
+  // headings don't promise "Delivered" for something collected from the store.
+  const isPickup = !order.customer_address
+  const steps = isPickup
+    ? STEPS.map(s => (s.key === 'completed' ? { ...s, label: 'Picked Up' } : s))
+    : STEPS
+  const heroLabel = isPickup && order.status === 'completed' ? 'Order Picked Up' : meta.label
+  const currentStepIdx = steps.findIndex(s => s.key === order.status)
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,7 +140,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
       <header className="sticky top-0 z-40 glass border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
-            <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="text-muted-foreground -ml-1">
+            <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="text-muted-foreground -ml-1" aria-label="Back to shop">
               <ArrowLeft size={18} />
             </Button>
             <div className="flex-1">
@@ -142,7 +165,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
           </div>
           <div className="flex-1">
             <h2 className={cn('text-xl font-black tracking-tight mb-0.5 flex items-center gap-1.5', tone.text)}>
-              {meta.label}{order.status === 'completed' && ' ✓'}
+              {heroLabel}{order.status === 'completed' && ' ✓'}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">{meta.sub}</p>
           </div>
@@ -155,7 +178,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
             <Progress value={meta.progress} className="h-1.5" />
             <div className="relative flex items-start justify-between">
               <div className="absolute top-[14px] left-[14px] right-[14px] h-px bg-border -z-0" />
-              {STEPS.map((step, i) => {
+              {steps.map((step, i) => {
                 const StepIcon = step.Icon
                 const done = i < currentStepIdx
                 const active = i === currentStepIdx
@@ -180,9 +203,9 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Delivery details */}
+          {/* Delivery / pickup details */}
           <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
-            <h3 className="font-bold text-sm text-foreground">Delivery Details</h3>
+            <h3 className="font-bold text-sm text-foreground">{isPickup ? 'Pickup Details' : 'Delivery Details'}</h3>
             <div className="space-y-2.5">
               <div className="flex items-start gap-2.5">
                 <User size={14} className="text-muted-foreground mt-0.5 shrink-0" />
@@ -196,7 +219,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
                   <Phone size={14} className="text-muted-foreground mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">Phone</p>
-                    <p className="text-sm font-semibold text-foreground">{order.customer_phone}</p>
+                    <a href={`tel:${order.customer_phone}`} className="text-sm font-semibold text-primary hover:underline">{order.customer_phone}</a>
                   </div>
                 </div>
               )}
