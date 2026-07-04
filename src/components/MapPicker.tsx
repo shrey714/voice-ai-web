@@ -59,9 +59,7 @@ export function MapPicker({
     <MapContainer
       center={[lat, lng]}
       zoom={16}
-      // Off by default so scrolling the wheel over the map inside the address
-      // dialog scrolls the form, not the map. +/- controls still zoom.
-      scrollWheelZoom={false}
+      scrollWheelZoom
       className="h-56 w-full rounded-xl z-0"
     >
       <TileLayer
