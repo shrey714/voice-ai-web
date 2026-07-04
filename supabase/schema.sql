@@ -372,3 +372,77 @@ create policy "owner update own shop images"
       select id::text from public.online_shops where owner_user_id = auth.uid()
     )
   );
+
+
+-- ────────────────────────────────────────────────────────────
+-- 12. Block orders against a closed/disabled shop at the database layer
+--
+--     Found: the web app's checkout only checked shop hours client-side,
+--     and only at page-load time. A cart added while a shop was open
+--     survives (by design — it's keyed per-shop in localStorage with no
+--     expiry) past closing time, past days, indefinitely. Nothing
+--     re-validated shop status before the order insert, and since that
+--     insert is a direct client-side Supabase call, a client-side-only
+--     fix is trivially bypassable (e.g. calling supabase.insert directly
+--     from devtools) — this needs to be enforced here, not just in the UI.
+--
+--     Mirrors src/lib/shop.ts's isShopOpen(): disabled shops are never
+--     open; manual_override short-circuits the schedule; otherwise the
+--     shop's schedule is checked for the current day/time. Schedule times
+--     are shop-local wall-clock (this app is India-only, see the Photon
+--     search bias in src/lib/geocode.ts), so this evaluates "now" in
+--     Asia/Kolkata rather than the database session's timezone.
+--
+--     If online_shops.schedule isn't a jsonb array of
+--     {day:int, open:"HH:MM", close:"HH:MM"} on your instance, adjust the
+--     jsonb_array_elements() block below to match.
+-- ────────────────────────────────────────────────────────────
+create or replace function public.is_shop_open(p_shop_id uuid)
+returns boolean
+language plpgsql
+stable
+as $$
+declare
+  v_enabled boolean;
+  v_override text;
+  v_schedule jsonb;
+  v_slot jsonb;
+  v_now timestamp := now() at time zone 'Asia/Kolkata';
+  v_mins int;
+  v_open_mins int;
+  v_close_mins int;
+begin
+  select is_enabled, manual_override, schedule
+    into v_enabled, v_override, v_schedule
+    from public.online_shops
+    where id = p_shop_id;
+
+  if not found or v_enabled is not true then
+    return false;
+  end if;
+
+  if v_override = 'open' then return true; end if;
+  if v_override = 'closed' then return false; end if;
+
+  select s into v_slot
+    from jsonb_array_elements(coalesce(v_schedule, '[]'::jsonb)) s
+    where (s->>'day')::int = extract(dow from v_now)::int
+    limit 1;
+
+  if v_slot is null then return false; end if;
+
+  v_mins := extract(hour from v_now)::int * 60 + extract(minute from v_now)::int;
+  v_open_mins := split_part(v_slot->>'open', ':', 1)::int * 60 + split_part(v_slot->>'open', ':', 2)::int;
+  v_close_mins := split_part(v_slot->>'close', ':', 1)::int * 60 + split_part(v_slot->>'close', ':', 2)::int;
+
+  return v_mins >= v_open_mins and v_mins < v_close_mins;
+end;
+$$;
+
+drop policy if exists "customers insert orders" on online_orders;
+create policy "customers insert orders"
+  on online_orders for insert
+  with check (
+    customer_user_id = auth.uid()
+    and public.is_shop_open(shop_id)
+  );

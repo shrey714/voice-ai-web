@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { isShopOpen } from '@/lib/shop'
+import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { useCart } from '@/lib/cart'
 import { useWishlist } from '@/lib/wishlist'
 import { useRecentlyViewed } from '@/lib/recentlyViewed'
@@ -90,7 +90,7 @@ export function ProductDetailClient({
   const [added, setAdded] = useState(false)
   const [burst, setBurst] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const open = isShopOpen(shop)
+  const open = useIsShopOpen(shop)
 
   // Track this view for the "recently viewed" rail.
   useEffect(() => {
