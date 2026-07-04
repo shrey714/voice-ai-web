@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState, useRef, use } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { fetchShop } from '@/lib/shop'
+import { fetchShop, isShopOpen } from '@/lib/shop'
+import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { useCart } from '@/lib/cart'
 import { supabase } from '@/lib/supabase'
 import { Shop } from '@/lib/types'
@@ -16,9 +18,10 @@ import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { BrandLoader } from '@/components/BrandLoader'
 import { LocationPicker } from '@/components/LocationPicker'
+import { EmptyState } from '@/components/EmptyState'
 import {
   ArrowLeft, User, Phone, MapPin, FileText, Truck, Store,
-  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation, Pencil,
+  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation, Pencil, Clock,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
 
@@ -68,6 +71,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const phoneRef = useRef<HTMLInputElement>(null)
 
   const cart = useCart(slug, shop?.shop_name)
+  // Re-checked live (not just once on mount) — a cart can sit untouched for
+  // days, and the shop could close while this exact tab is left open.
+  const shopOpen = useIsShopOpen(shop)
   const { selected, setSelected } = useLocation()
 
   const clearFieldError = (field: string) =>
@@ -137,6 +143,23 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
   if (loading || !shop) return <BrandLoader label="Loading checkout…" />
 
+  if (!shopOpen) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <EmptyState
+          icon={Clock}
+          title="Shop is currently closed"
+          description="This shop isn't taking orders right now. Your cart is still saved — come back once they reopen."
+          action={
+            <Button asChild variant="secondary">
+              <Link href={`/${slug}`}>← Back to shop</Link>
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
   const deliveryFee = wantsDelivery && shop.delivery_enabled ? shop.delivery_fee : 0
   const subtotal = cart.total
   const discount = coupon
@@ -161,6 +184,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
     // second click could re-enter before the button re-renders as disabled.
     if (placing || orderPlaced.current) return
     if (belowMin) { setError(`Minimum order is ${formatPrice(shop.min_order_amount)}.`); return }
+
+    // Re-fetch live shop status right before submitting — `shop` was loaded
+    // on mount and the periodic isShopOpen check only ticks every 30s, so a
+    // shop that closes in that window shouldn't slip an order through.
+    const liveShop = await fetchShop(slug)
+    if (!liveShop || !isShopOpen(liveShop)) {
+      setShop(liveShop)
+      return
+    }
 
     const items = cart.items.map(i => ({
       productId: i.productId,

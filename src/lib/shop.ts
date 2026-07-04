@@ -3,7 +3,14 @@ import { unstable_cache } from 'next/cache';
 import { supabase } from './supabase';
 import { Shop, OnlineProduct } from './types';
 
+/**
+ * Whether this shop can take orders right now. A disabled (unpublished) shop
+ * is never "open" regardless of schedule/override — is_enabled is checked
+ * first so every caller gets this for free instead of having to remember to
+ * check both.
+ */
 export function isShopOpen(shop: Shop): boolean {
+  if (!shop.is_enabled) return false;
   if (shop.manual_override === 'open') return true;
   if (shop.manual_override === 'closed') return false;
   const now = new Date();

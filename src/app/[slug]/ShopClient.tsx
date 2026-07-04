@@ -3,7 +3,7 @@ import { memo, useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { isShopOpen } from '@/lib/shop'
+import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { useCart, useOtherCarts } from '@/lib/cart'
 import { useWishlist } from '@/lib/wishlist'
 import { flyToCart } from '@/lib/flyToCart'
@@ -257,7 +257,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   useEffect(() => { cartRef.current = cart; wishlistRef.current = wishlist })
   const { scrolled } = useHeaderScroll()
   const { selected } = useLocation()
-  const open = isShopOpen(shop)
+  const open = useIsShopOpen(shop)
 
   const distanceToShop = selected?.latitude != null && selected?.longitude != null
     && shop.latitude != null && shop.longitude != null
