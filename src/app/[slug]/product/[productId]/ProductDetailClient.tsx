@@ -271,7 +271,12 @@ export function ProductDetailClient({
               <div className="flex items-center border border-border rounded-xl overflow-hidden">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Minus size={15} /></button>
                 <span className="px-4 py-2.5 font-bold text-foreground min-w-[48px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity" className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Plus size={15} /></button>
+                <button
+                  onClick={() => quantity < product.quantity && setQuantity(quantity + 1)}
+                  disabled={quantity >= product.quantity}
+                  aria-label="Increase quantity"
+                  className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground disabled:opacity-40 disabled:pointer-events-none"
+                ><Plus size={15} /></button>
               </div>
               <Button size="lg" className="flex-1 gap-2 h-12 text-[15px]" onClick={handleAddToCart} disabled={!open}>
                 {added ? <><Check size={18} /> Added</> : open ? <><ShoppingCart size={18} /> Add to Cart</> : <><AlertCircle size={18} /> Shop Closed</>}
@@ -393,7 +398,12 @@ export function ProductDetailClient({
           <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card shrink-0">
             <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
             <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
-            <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity" className="px-3 py-2.5 text-foreground"><Plus size={15} /></button>
+            <button
+              onClick={() => quantity < product.quantity && setQuantity(quantity + 1)}
+              disabled={quantity >= product.quantity}
+              aria-label="Increase quantity"
+              className="px-3 py-2.5 text-foreground disabled:opacity-40 disabled:pointer-events-none"
+            ><Plus size={15} /></button>
           </div>
           <Button size="lg" className="flex-1 gap-2 h-12" onClick={handleAddToCart} disabled={!open}>
             {added ? <><Check size={18} /> Added</> : open ? <><ShoppingCart size={18} /> Add · {formatPrice(price * quantity)}</> : 'Shop Closed'}

@@ -59,10 +59,20 @@ export async function updateAddress(
   id: string,
   patch: AddressInput,
 ): Promise<CustomerAddress | null> {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return null;
+
+  // RLS already scopes this to the caller's own rows — the explicit
+  // user_id filter is defense-in-depth, not the only thing stopping a
+  // cross-user edit (see the shop-closed/order-price audit: relying on a
+  // single layer is exactly the pattern that's bitten this schema before,
+  // e.g. the anon_all_orders incident noted in section 7/9 above).
   const { data, error } = await supabase
     .from('customer_addresses')
     .update(patch)
     .eq('id', id)
+    .eq('user_id', uid)
     .select('*')
     .single();
   if (error) { console.error('updateAddress', error); return null; }
@@ -71,8 +81,16 @@ export async function updateAddress(
 
 /** Delete an address. If it was the default, promote the newest remaining one. */
 export async function deleteAddress(id: string): Promise<boolean> {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return false;
+
   const target = (await listAddresses()).find(a => a.id === id);
-  const { error } = await supabase.from('customer_addresses').delete().eq('id', id);
+  const { error } = await supabase
+    .from('customer_addresses')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', uid);
   if (error) { console.error('deleteAddress', error); return false; }
 
   if (target?.is_default) {
@@ -84,10 +102,15 @@ export async function deleteAddress(id: string): Promise<boolean> {
 
 /** Mark an address as the default (DB trigger clears the previous one). */
 export async function setDefaultAddress(id: string): Promise<boolean> {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return false;
+
   const { error } = await supabase
     .from('customer_addresses')
     .update({ is_default: true })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', uid);
   if (error) { console.error('setDefaultAddress', error); return false; }
   return true;
 }

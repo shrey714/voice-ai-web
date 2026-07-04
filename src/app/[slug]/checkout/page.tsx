@@ -251,7 +251,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       .single()
 
     setPlacing(false)
-    if (err || !data) { setError('Could not place order. Please try again.'); return }
+    if (err || !data) {
+      // The DB re-validates price/stock/min-order/shop-status at insert time
+      // (see supabase/schema.sql's validate_order_before_insert trigger and
+      // is_shop_open policy) and raises a specific, customer-facing message
+      // when something changed since the cart was filled — surface that
+      // instead of a dead-end generic error.
+      setError(err?.message || 'Could not place order. Please try again.')
+      return
+    }
 
     orderPlaced.current = true
     cart.clearCart()
