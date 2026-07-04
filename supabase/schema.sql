@@ -446,3 +446,124 @@ create policy "customers insert orders"
     customer_user_id = auth.uid()
     and public.is_shop_open(shop_id)
   );
+
+
+-- ────────────────────────────────────────────────────────────
+-- 13. Price/stock integrity at order insert
+--
+--    Found during a wider audit after the shop-closed fix above: the
+--    checkout page (src/app/[slug]/checkout/page.tsx) builds `items`,
+--    `subtotal`, `delivery_fee` and `total` entirely from client/
+--    localStorage cart state and inserts them verbatim — same trust-
+--    boundary bug as the shop-closed issue, just for money and stock
+--    instead of open/closed. Nothing previously re-validated that:
+--      - a line's unitPrice matches the product's current price
+--      - the requested quantity doesn't exceed current stock
+--      - the product still exists / is still visible / belongs to this shop
+--      - delivery_fee matches the shop's current fee
+--      - subtotal meets the shop's current min_order_amount
+--    Since the order insert is a direct client-side Supabase call (no
+--    API layer in front of PostgREST — see section 7/9's postmortem),
+--    a client-side-only fix is bypassable from devtools. This trigger
+--    recomputes everything from the live catalog and rejects the
+--    insert if it doesn't add up, the same way `is_shop_open` above
+--    closes the open/closed gap at the database layer.
+--
+--    Coupons (LOCAL10/FRESH15 in checkout/page.tsx) are a client-side-
+--    only demo feature with no server-side ledger of which code was
+--    applied, so there's nothing structured to validate a specific
+--    code against. Rather than trust the client's discount arithmetic
+--    outright, `total` is allowed to sit anywhere between the full
+--    recomputed price and that price minus the richest coupon's
+--    maximum benefit (15% capped at ₹80) — closes the "set total to
+--    ₹1" exploit while the discount feature stays functional. If
+--    coupons become a real, server-tracked feature, replace this cap
+--    with an exact match against the applied code's discount.
+-- ────────────────────────────────────────────────────────────
+create or replace function public.validate_order_before_insert()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_item jsonb;
+  v_product record;
+  v_recomputed_items jsonb := '[]'::jsonb;
+  v_line_total numeric(12,2);
+  v_subtotal numeric(12,2) := 0;
+  v_shop record;
+  v_delivery_fee numeric(12,2) := 0;
+  v_max_discount numeric(12,2);
+  v_min_total numeric(12,2);
+  v_max_total numeric(12,2);
+begin
+  if jsonb_array_length(NEW.items) = 0 then
+    raise exception 'Your cart is empty.';
+  end if;
+
+  for v_item in select * from jsonb_array_elements(NEW.items)
+  loop
+    select product_id, name, online_price, store_price, quantity, is_visible
+      into v_product
+      from public.online_products
+      where product_id = (v_item->>'productId') and shop_id = NEW.shop_id;
+
+    if not found or v_product.is_visible is not true then
+      raise exception 'One or more items in your cart are no longer available. Please refresh your cart and try again.';
+    end if;
+
+    if (v_item->>'quantity')::int > v_product.quantity then
+      raise exception 'Only % left of "%" — please update the quantity in your cart.', v_product.quantity, v_product.name;
+    end if;
+
+    v_line_total := coalesce(v_product.online_price, v_product.store_price, 0) * (v_item->>'quantity')::int;
+    v_subtotal := v_subtotal + v_line_total;
+
+    v_recomputed_items := v_recomputed_items || jsonb_build_object(
+      'productId', v_product.product_id,
+      'productName', v_product.name,
+      'quantity', (v_item->>'quantity')::int,
+      'unitPrice', coalesce(v_product.online_price, v_product.store_price, 0),
+      'totalPrice', v_line_total
+    );
+  end loop;
+
+  select min_order_amount, delivery_fee, delivery_enabled
+    into v_shop
+    from public.online_shops
+    where id = NEW.shop_id;
+
+  if v_subtotal < v_shop.min_order_amount then
+    raise exception 'Minimum order is ₹%.', v_shop.min_order_amount;
+  end if;
+
+  if NEW.customer_address is not null and v_shop.delivery_enabled then
+    v_delivery_fee := v_shop.delivery_fee;
+  end if;
+
+  v_max_total := v_subtotal + v_delivery_fee;
+  v_max_discount := least(v_subtotal * 0.15, 80);
+  v_min_total := greatest(v_max_total - v_max_discount, 0);
+
+  if NEW.total < v_min_total then
+    raise exception 'Order total doesn''t match current pricing. Please refresh and try again.';
+  end if;
+  -- Client's total can be *higher* than v_max_total for an honest reason —
+  -- a price or delivery fee dropped since the cart was filled — so that
+  -- direction is corrected in the customer's favor rather than rejected;
+  -- only undercharging (the fraud direction) blocks the insert above.
+  if NEW.total > v_max_total then
+    NEW.total := v_max_total;
+  end if;
+
+  NEW.items := v_recomputed_items;
+  NEW.subtotal := v_subtotal;
+  NEW.delivery_fee := v_delivery_fee;
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists validate_order_before_insert on public.online_orders;
+create trigger validate_order_before_insert
+  before insert on public.online_orders
+  for each row execute function public.validate_order_before_insert();

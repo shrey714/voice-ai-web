@@ -205,7 +205,12 @@ const ProductCard = memo(function ProductCard({
                 <Minus size={13} />
               </button>
               <span key={cartQty} className="px-1 min-w-[22px] text-center text-sm font-black text-primary-foreground animate-count">{cartQty}</span>
-              <button onClick={() => onUpdateQty(product.product_id, cartQty + 1)} aria-label="Increase quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
+              <button
+                onClick={() => cartQty < product.quantity && onUpdateQty(product.product_id, cartQty + 1)}
+                disabled={cartQty >= product.quantity}
+                aria-label="Increase quantity"
+                className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25 disabled:opacity-40 disabled:pointer-events-none"
+              >
                 <Plus size={13} />
               </button>
             </div>
