@@ -30,36 +30,47 @@ export function RatingStars({
     lg: 'text-base',
   }
 
+  // Accessible label describing the whole rating in one phrase.
+  const label = `Rated ${rating.toFixed(1)} out of 5${
+    count !== undefined ? `, ${count.toLocaleString()} reviews` : ''
+  }`
+
   return (
-    <div className="flex items-center gap-1.5">
+    <div
+      className="flex items-center gap-1.5"
+      // Non-interactive ratings are a single graphical object, not 5 buttons.
+      {...(!interactive ? { role: 'img' as const, 'aria-label': label } : {})}
+    >
       <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            onClick={() => interactive && onRate?.(star)}
-            disabled={!interactive}
-            className={cn(
-              'transition-transform',
-              interactive && 'hover:scale-110 cursor-pointer',
-              !interactive && 'cursor-default'
-            )}
-          >
+        {[1, 2, 3, 4, 5].map((star) => {
+          const filled = star <= Math.round(rating)
+          const starIcon = (
             <Star
-              className={cn(
-                sizes[size],
-                star <= Math.round(rating)
-                  ? 'fill-star text-star'
-                  : 'text-muted-foreground'
-              )}
+              aria-hidden
+              className={cn(sizes[size], filled ? 'fill-star text-star' : 'text-muted-foreground')}
             />
-          </button>
-        ))}
+          )
+          // Only emit real buttons when the control is actually interactive.
+          return interactive ? (
+            <button
+              key={star}
+              type="button"
+              onClick={() => onRate?.(star)}
+              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+              className="transition-transform hover:scale-110 cursor-pointer"
+            >
+              {starIcon}
+            </button>
+          ) : (
+            <span key={star}>{starIcon}</span>
+          )
+        })}
       </div>
-      <span className={cn('font-medium', textSizes[size])}>
+      <span className={cn('font-medium', textSizes[size])} aria-hidden={!interactive}>
         {rating.toFixed(1)}
       </span>
       {count !== undefined && (
-        <span className={cn('text-muted-foreground', textSizes[size])}>
+        <span className={cn('text-muted-foreground', textSizes[size])} aria-hidden={!interactive}>
           ({count.toLocaleString()})
         </span>
       )}

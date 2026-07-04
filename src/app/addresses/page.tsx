@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { CustomerAddress } from '@/lib/types'
-import { listAddresses, deleteAddress, setDefaultAddress } from '@/lib/addresses'
+import { fetchAddresses, deleteAddress, setDefaultAddress } from '@/lib/addresses'
 import { useLocation, addressToSelected } from '@/lib/location'
 import { AddressDialog } from '@/components/AddressDialog'
 import { BrandLoader } from '@/components/BrandLoader'
@@ -12,8 +12,11 @@ import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog'
+import {
   ArrowLeft, Plus, MapPin, Home, Briefcase, MapPinned,
-  Star, Pencil, Trash2, Check, Loader2,
+  Star, Pencil, Trash2, Check, Loader2, AlertCircle,
 } from 'lucide-react'
 
 function labelIcon(label: string) {
@@ -29,15 +32,23 @@ function AddressesInner() {
   const { selected, setSelected } = useLocation()
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<CustomerAddress | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CustomerAddress | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const refresh = useCallback(async () => {
-    setAddresses(await listAddresses())
+    const { data, error } = await fetchAddresses()
+    setLoadError(error)
+    // Don't blow away a good list on a transient error.
+    if (!error) setAddresses(data)
   }, [])
+
+  const retry = async () => { setLoading(true); await refresh(); setLoading(false) }
 
   useEffect(() => {
     (async () => {
@@ -63,7 +74,12 @@ function AddressesInner() {
 
   const handleSetDefault = async (a: CustomerAddress) => {
     setBusyId(a.id)
-    setAddresses(prev => prev.map(x => ({ ...x, is_default: x.id === a.id })))
+    // Optimistically flag AND reorder so the new default jumps to the top,
+    // matching the canonical default-first ordering.
+    setAddresses(prev =>
+      prev.map(x => ({ ...x, is_default: x.id === a.id }))
+        .sort((x, y) => Number(y.is_default) - Number(x.is_default)),
+    )
     const ok = await setDefaultAddress(a.id)
     setBusyId(null)
     if (!ok) { toast.error('Could not set default'); refresh() }
@@ -75,12 +91,14 @@ function AddressesInner() {
     }
   }
 
-  const handleDelete = async (a: CustomerAddress) => {
-    if (!confirm(`Delete this ${a.label} address?`)) return
-    setBusyId(a.id)
+  const confirmDelete = async () => {
+    const a = deleteTarget
+    if (!a) return
+    setDeleting(true)
     setAddresses(prev => prev.filter(x => x.id !== a.id))
     const ok = await deleteAddress(a.id)
-    setBusyId(null)
+    setDeleting(false)
+    setDeleteTarget(null)
     if (!ok) { toast.error('Could not delete address'); refresh(); return }
     toast.success('Address deleted')
     if (selected?.addressId === a.id) setSelected(null)
@@ -110,7 +128,14 @@ function AddressesInner() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-5">
-        {addresses.length === 0 ? (
+        {loadError && addresses.length === 0 ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Couldn't load your addresses"
+            description="Something went wrong. Please check your connection and try again."
+            action={<Button variant="secondary" className="gap-1.5" onClick={retry}>Retry</Button>}
+          />
+        ) : addresses.length === 0 ? (
           <EmptyState
             icon={MapPin}
             title="No saved addresses yet"
@@ -153,7 +178,7 @@ function AddressesInner() {
                     <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => openEdit(a)} disabled={busy}>
                       <Pencil size={13} /> Edit
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto" onClick={() => handleDelete(a)} disabled={busy}>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive ml-auto" onClick={() => setDeleteTarget(a)} disabled={busy}>
                       <Trash2 size={13} /> Delete
                     </Button>
                   </div>
@@ -165,6 +190,25 @@ function AddressesInner() {
       </main>
 
       <AddressDialog open={dialogOpen} onOpenChange={setDialogOpen} initial={editing} onSaved={handleSaved} />
+
+      {/* Styled delete confirmation (replaces the native confirm() dialog). */}
+      <Dialog open={!!deleteTarget} onOpenChange={o => { if (!o && !deleting) setDeleteTarget(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete this address?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget ? `Your ${deleteTarget.label} address will be permanently removed.` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" className="gap-2" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

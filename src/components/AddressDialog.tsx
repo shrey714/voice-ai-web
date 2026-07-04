@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { CustomerAddress } from '@/lib/types'
-import { detectPosition } from '@/lib/location'
+import { detectPosition, useLocation } from '@/lib/location'
 import { reverseGeocode, searchAddresses, type GeoAddress } from '@/lib/geocode'
 import { createAddress, updateAddress, type AddressInput } from '@/lib/addresses'
 import {
@@ -66,6 +66,7 @@ export function AddressDialog({
   onSaved?: (a: CustomerAddress) => void
 }) {
   const editingId = initial?.id ?? null
+  const { selected } = useLocation()
   const [draft, setDraft] = useState<AddressInput>(draftFrom(initial))
   const [detecting, setDetecting] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -119,22 +120,27 @@ export function AddressDialog({
   const set = <K extends keyof AddressInput>(k: K, v: AddressInput[K]) =>
     setDraft(d => ({ ...d, [k]: v }))
 
-  // Fill address parts from coordinates (keeps user-typed flat/landmark/receiver).
+  // Fill address parts from coordinates. Only backfills fields the user hasn't
+  // typed into (keeps manual corrections; a pin nudge shouldn't wipe them).
   const fillFromCoords = (lat: number, lng: number, immediate = false) => {
     setDraft(d => ({ ...d, latitude: lat, longitude: lng }))
     if (geoTimer.current) clearTimeout(geoTimer.current)
     const run = async () => {
       try {
         const geo = await reverseGeocode(lat, lng)
-        setDraft(d => ({
-          ...d,
-          area: geo.area ?? d.area,
-          city: geo.city ?? d.city,
-          state: geo.state ?? d.state,
-          pincode: geo.pincode ?? d.pincode,
-          building: d.building?.trim() ? d.building : (geo.building ?? d.building),
-          formatted_address: geo.formatted,
-        }))
+        setDraft(d => {
+          const keep = (cur: string | null | undefined, next: string | null) =>
+            (cur ?? '').trim() ? cur! : (next ?? cur ?? '')
+          return {
+            ...d,
+            area: keep(d.area, geo.area),
+            city: keep(d.city, geo.city),
+            state: keep(d.state, geo.state),
+            pincode: keep(d.pincode, geo.pincode),
+            building: keep(d.building, geo.building),
+            formatted_address: geo.formatted,
+          }
+        })
       } catch { /* keep manual values */ }
     }
     if (immediate) run()
@@ -156,9 +162,14 @@ export function AddressDialog({
 
   const hasPin = draft.latitude != null && draft.longitude != null
 
-  const canSave = !!(draft.receiver_name?.trim()) &&
-    (draft.receiver_phone ?? '').replace(/\D/g, '').length >= 10 &&
-    !!(draft.flat?.trim() || draft.building?.trim() || draft.area?.trim())
+  // Concrete list of what's still needed — shown next to a disabled Save so the
+  // button isn't a dead end (audit: "disabled CTA with no explanation").
+  const missing: string[] = []
+  if (!draft.receiver_name?.trim()) missing.push('receiver name')
+  if ((draft.receiver_phone ?? '').replace(/\D/g, '').length < 10) missing.push('a 10-digit phone')
+  if (!(draft.flat?.trim() || draft.building?.trim() || draft.area?.trim())) missing.push('house/area')
+  if ((draft.pincode ?? '').replace(/\D/g, '').length !== 6) missing.push('a 6-digit pincode')
+  const canSave = missing.length === 0
 
   const handleSave = async () => {
     if (!canSave) return
@@ -202,8 +213,8 @@ export function AddressDialog({
               </div>
               {results.length > 0 && (
                 <div className="rounded-xl border border-border overflow-hidden divide-y divide-border max-h-56 overflow-y-auto">
-                  {results.map((g, i) => (
-                    <button key={i} type="button" onClick={() => pickResult(g)} className="w-full flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted">
+                  {results.map(g => (
+                    <button key={`${g.latitude},${g.longitude}`} type="button" onClick={() => pickResult(g)} className="w-full flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted">
                       <MapPin size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
                       <span className="flex-1 min-w-0">
                         <span className="block text-sm font-semibold text-foreground truncate">{g.area || g.city || 'Location'}</span>
@@ -251,7 +262,14 @@ export function AddressDialog({
                     Use current location
                   </Button>
                   <Button variant="ghost" size="sm" className="gap-1.5 text-primary"
-                    onClick={() => fillFromCoords(INDIA_CENTER.lat, INDIA_CENTER.lng)}>
+                    onClick={() => {
+                      // Start near the user's chosen location if we have it, so
+                      // they don't have to pan across the country from India's centre.
+                      const seed = selected?.latitude != null && selected?.longitude != null
+                        ? { lat: selected.latitude, lng: selected.longitude }
+                        : INDIA_CENTER
+                      fillFromCoords(seed.lat, seed.lng)
+                    }}>
                     <Move size={14} /> Drop pin manually
                   </Button>
                 </div>
@@ -323,7 +341,7 @@ export function AddressDialog({
                 <Input id="state" value={draft.state ?? ''} onChange={e => set('state', e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pin" className="text-xs">Pincode</Label>
+                <Label htmlFor="pin" className="text-xs">Pincode *</Label>
                 <Input id="pin" inputMode="numeric" value={draft.pincode ?? ''}
                   onChange={e => set('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))} />
               </div>
@@ -336,12 +354,19 @@ export function AddressDialog({
           </div>
         </ScrollArea>
 
-        <div className="flex gap-3 p-5 pt-3 border-t border-border">
-          <Button variant="secondary" className="flex-1 h-11" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="flex-1 gap-2 h-11" onClick={handleSave} disabled={!canSave || saving}>
-            {saving ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
-            {editingId ? 'Update' : 'Save address'}
-          </Button>
+        <div className="p-5 pt-3 border-t border-border space-y-2">
+          {!canSave && !saving && (
+            <p className="text-xs text-muted-foreground text-center">
+              Add {missing.join(', ')} to save.
+            </p>
+          )}
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1 h-11" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button className="flex-1 gap-2 h-11" onClick={handleSave} disabled={!canSave || saving}>
+              {saving ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
+              {editingId ? 'Update' : 'Save address'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

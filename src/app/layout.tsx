@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/lib/utils'
+import { SITE_URL, SITE_NAME } from '@/lib/site'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Footer } from '@/components/Footer'
 import { Toaster } from '@/components/ui/sonner'
@@ -13,21 +14,40 @@ const inter = Inter({
   variable: '--font-sans',
 })
 
+const DESCRIPTION = 'Browse products and order from local shops near you. Fast, fresh, and delivered.'
+
 export const metadata: Metadata = {
-  title: { default: 'ShopNear — Order from local shops', template: '%s · ShopNear' },
-  description: 'Browse products and order from local shops near you. Fast, fresh, and delivered.',
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${SITE_NAME} — Order from local shops`, template: `%s · ${SITE_NAME}` },
+  description: DESCRIPTION,
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'ShopNear' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: SITE_NAME },
   icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Order from local shops`,
+    description: DESCRIPTION,
+    url: '/',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE_NAME} — Order from local shops`,
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // Do NOT set maximumScale/userScalable — capping zoom is a WCAG 1.4.4 failure.
+  // iOS auto-zoom on focus is already prevented via 16px+ input font-size, not a zoom lock.
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+    // Matches the resolved dark --background token (oklch(0.145 0 0)) so the mobile
+    // browser chrome doesn't seam against the page. Was #0a0a0a (too dark).
+    { media: '(prefers-color-scheme: dark)', color: '#242424' },
   ],
 }
 

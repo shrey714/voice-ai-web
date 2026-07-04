@@ -49,11 +49,19 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
                     <p className="text-xs text-muted-foreground mt-0.5">{formatPrice(item.price)} · {item.unit}</p>
                   </div>
                   <div className="flex items-center bg-card border border-border rounded-lg overflow-hidden shrink-0">
-                    <button onClick={() => cart.updateQty(item.productId, item.quantity - 1)} className="size-7 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                    <button
+                      onClick={() => cart.updateQty(item.productId, item.quantity - 1)}
+                      aria-label={item.quantity === 1 ? `Remove ${item.name} from cart` : 'Decrease quantity'}
+                      className="size-7 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                    >
                       {item.quantity === 1 ? <Trash2 size={12} /> : <Minus size={12} />}
                     </button>
                     <span key={item.quantity} className="px-1.5 text-sm font-bold text-foreground min-w-[24px] text-center animate-count">{item.quantity}</span>
-                    <button onClick={() => cart.updateQty(item.productId, item.quantity + 1)} className="size-7 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                    <button
+                      onClick={() => cart.updateQty(item.productId, item.quantity + 1)}
+                      aria-label="Increase quantity"
+                      className="size-7 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                    >
                       <Plus size={12} />
                     </button>
                   </div>

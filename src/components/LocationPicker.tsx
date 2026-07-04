@@ -197,8 +197,8 @@ export function LocationPicker({
             {/* Search results */}
             {results.length > 0 && (
               <div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
-                {results.map((g, i) => (
-                  <button key={i} onClick={() => pickSearchResult(g)} className="w-full flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted">
+                {results.map(g => (
+                  <button key={`${g.latitude},${g.longitude}`} onClick={() => pickSearchResult(g)} className="w-full flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted">
                     <MapPin size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-semibold text-foreground truncate">{g.area || g.city || 'Location'}</span>

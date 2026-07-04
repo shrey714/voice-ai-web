@@ -43,31 +43,44 @@ function OrderSkeleton() {
   )
 }
 
+type OrderRow = OnlineOrder & { shop_name?: string; shop_slug?: string }
+// Shape of a single row from the joined query below — `online_shops` comes
+// back as the related row (or null if the shop was deleted) via the FK join.
+type OrderJoinRow = OnlineOrder & { online_shops: { shop_name: string; shop_slug: string } | null }
+
 export default function OrdersPage() {
   const router = useRouter()
-  const [orders, setOrders] = useState<(OnlineOrder & { shop_name?: string; shop_slug?: string })[]>([])
+  const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'done'>('all')
 
-  useEffect(() => {
-    (async () => {
+  const loadOrders = () => {
+    setLoading(true)
+    setLoadError(false)
+    ;(async () => {
       const { data: session } = await supabase.auth.getSession()
       if (!session.session) { router.replace('/auth?redirect=/orders'); return }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('online_orders')
         .select('*, online_shops(shop_name, shop_slug)')
         .eq('customer_user_id', session.session.user.id)
         .order('created_at', { ascending: false })
+        .returns<OrderJoinRow[]>()
 
-      setOrders((data ?? []).map((o: any) => ({
+      if (error) console.error('[orders-fetch]', error)
+      setOrders((data ?? []).map(o => ({
         ...o,
         shop_name: o.online_shops?.shop_name,
         shop_slug: o.online_shops?.shop_slug,
       })))
+      setLoadError(!!error)
       setLoading(false)
     })()
-  }, [])
+  }
+
+  useEffect(loadOrders, [router])
 
   const activeStatuses = ['pending', 'accepted', 'ready']
   const filtered = filter === 'active'
@@ -84,7 +97,7 @@ export default function OrdersPage() {
       <header className="sticky top-0 z-40 glass border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
-            <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1">
+            <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1" aria-label="Back to shops">
               <ArrowLeft size={18} />
             </Button>
             <div className="flex-1">
@@ -123,6 +136,13 @@ export default function OrdersPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {loading ? (
           <div className="space-y-3">{[...Array(3)].map((_, i) => <OrderSkeleton key={i} />)}</div>
+        ) : loadError ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Couldn't load your orders"
+            description="Something went wrong. Please try again."
+            action={<Button variant="secondary" size="sm" onClick={loadOrders}>Retry</Button>}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={ShoppingBag}
@@ -141,12 +161,20 @@ export default function OrdersPage() {
               const StatusIcon = sc.Icon
               const isActive = activeStatuses.includes(order.status)
 
+              // The order-tracking route needs the shop slug; if the shop was
+              // deleted the join returns null, so guard against a dead
+              // `/undefined/order/...` navigation.
+              const hasShop = !!order.shop_slug
+
               return (
                 <button
                   key={order.id}
-                  onClick={() => router.push(`/${order.shop_slug}/order/${order.id}`)}
+                  onClick={() => hasShop && router.push(`/${order.shop_slug}/order/${order.id}`)}
+                  disabled={!hasShop}
+                  aria-label={hasShop ? `View order from ${order.shop_name ?? 'shop'}` : undefined}
                   className={cn(
-                    'w-full text-left bg-card rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5',
+                    'w-full text-left bg-card rounded-2xl border overflow-hidden transition-all duration-200',
+                    hasShop ? 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer' : 'cursor-default',
                     isActive ? 'border-primary/25 ring-1 ring-primary/10' : 'border-border hover:border-primary/20',
                   )}
                 >
@@ -157,12 +185,12 @@ export default function OrdersPage() {
                         <StatusIcon size={18} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[15px] text-foreground truncate">{order.shop_name ?? 'Shop'}</p>
+                        <p className="font-bold text-[15px] text-foreground truncate">{order.shop_name ?? 'Shop no longer available'}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at)}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge variant={sc.badgeVariant} className="text-[10px] capitalize">{sc.label}</Badge>
-                        <ChevronRight size={15} className="text-muted-foreground" />
+                        {hasShop && <ChevronRight size={15} className="text-muted-foreground" />}
                       </div>
                     </div>
 

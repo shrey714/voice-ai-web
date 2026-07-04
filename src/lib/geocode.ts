@@ -96,12 +96,18 @@ interface PhotonFeature {
 export async function searchAddresses(
   query: string,
   signal?: AbortSignal,
+  bias?: { lat: number; lon: number },
 ): Promise<GeoAddress[]> {
   const q = query.trim();
   if (q.length < 3) return [];
 
+  // Bias results toward India (or the caller's location if provided) so an
+  // Indian user searching "Nagar" / "Park Street" gets local hits ranked first
+  // instead of worldwide matches. India centroid is the default.
+  const center = bias ?? { lat: 22.9734, lon: 78.6569 };
   const url =
-    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`;
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en` +
+    `&lat=${center.lat}&lon=${center.lon}`;
 
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error('search-failed');

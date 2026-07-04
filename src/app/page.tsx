@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase, getUser } from '@/lib/supabase'
 import { isShopOpen } from '@/lib/shop'
@@ -25,7 +26,6 @@ import { RecentlyViewed } from '@/components/RecentlyViewed'
 import { Reveal } from '@/components/Reveal'
 import { useHeaderScroll } from '@/lib/useScroll'
 import { useWishlist } from '@/lib/wishlist'
-import { useViewTransition } from '@/lib/useViewTransition'
 import { LocationChip } from '@/components/LocationChip'
 import {
   Search, ShoppingBag, LogOut, Bike, Store, Sparkles, User,
@@ -57,6 +57,7 @@ const PROMOS = [
 function HeroCarousel() {
   const [api, setApi] = useState<CarouselApi>()
   const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
     if (!api) return
@@ -66,12 +67,23 @@ function HeroCarousel() {
 
   useEffect(() => {
     if (!api) return
-    const id = setInterval(() => api.scrollNext(), 5000)
+    // WCAG 2.2.2: don't auto-advance for reduced-motion users, and pause on
+    // hover/focus (via `paused`) or when the tab is backgrounded.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => {
+      if (!paused && !document.hidden) api.scrollNext()
+    }, 5000)
     return () => clearInterval(id)
-  }, [api])
+  }, [api, paused])
 
   return (
-    <div className="relative animate-fade-in">
+    <div
+      className="relative animate-fade-in"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
       <Carousel setApi={setApi} opts={{ loop: true }} className="overflow-hidden rounded-3xl">
         <CarouselContent>
           {PROMOS.map((p, i) => (
@@ -79,7 +91,7 @@ function HeroCarousel() {
               <div className={cn('relative overflow-hidden bg-gradient-to-br text-white p-6 md:p-10 h-full min-h-[168px] md:min-h-[200px] flex flex-col justify-center', p.className)}>
                 <div className="relative z-10 max-w-lg">
                   <div className="flex items-center gap-2 mb-2.5">
-                    <Sparkles size={15} className="text-yellow-300" />
+                    <Sparkles size={15} className="text-star" />
                     <span className="text-[11px] font-bold tracking-wide uppercase opacity-80">{p.tag}</span>
                   </div>
                   <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight mb-2">{p.title}</h2>
@@ -93,18 +105,23 @@ function HeroCarousel() {
           ))}
         </CarouselContent>
       </Carousel>
-      {/* Dots */}
-      <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+      {/* Dots — small visual, ≥44px tappable hit area via padding */}
+      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center z-10">
         {PROMOS.map((_, i) => (
           <button
             key={i}
             aria-label={`Go to slide ${i + 1}`}
+            aria-current={current === i ? 'true' : undefined}
             onClick={() => api?.scrollTo(i)}
-            className={cn(
-              'h-1.5 rounded-full transition-all duration-300',
-              current === i ? 'w-5 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70',
-            )}
-          />
+            className="flex h-11 min-w-11 items-center justify-center px-0.5"
+          >
+            <span
+              className={cn(
+                'block h-1.5 rounded-full transition-all duration-300',
+                current === i ? 'w-5 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70',
+              )}
+            />
+          </button>
         ))}
       </div>
     </div>
@@ -146,8 +163,7 @@ function ShopCardSkeleton() {
   )
 }
 
-function ShopCard({ shop, onClick, featured = false, distance = null, cartCount = 0 }: { shop: Shop; onClick: () => void; featured?: boolean; distance?: number | null; cartCount?: number }) {
-  const vt = useViewTransition()
+function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { shop: Shop; featured?: boolean; distance?: number | null; cartCount?: number }) {
   const open = isShopOpen(shop)
   const initial = shop.shop_name.charAt(0).toUpperCase()
   const rating = seeded(shop.id + 'r', 4.0, 4.9, 1)
@@ -155,11 +171,11 @@ function ShopCard({ shop, onClick, featured = false, distance = null, cartCount 
   const outOfDeliveryRange = shop.delivery_enabled && shop.delivery_radius_km != null && distance != null && distance > shop.delivery_radius_km
 
   return (
-    <button
-      onClick={onClick}
-      onPointerEnter={() => vt.prefetch(`/${shop.shop_slug}`)}
+    <Link
+      href={`/${shop.shop_slug}`}
+      aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}`}
       className={cn(
-        'group text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full',
+        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full',
         featured ? 'border-gradient shadow-soft' : 'border border-border bg-card hover:border-primary/30',
       )}
     >
@@ -238,34 +254,40 @@ function ShopCard({ shop, onClick, featured = false, distance = null, cartCount 
           {open && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
         </div>
       </div>
-    </button>
+    </Link>
   )
 }
 
 /* ──────────────────────────────── Page ──────────────────────────────────── */
 export default function HomePage() {
   const router = useRouter()
-  const vt = useViewTransition()
   const { hidden, scrolled } = useHeaderScroll()
   const wishlist = useWishlist()
   const { selected } = useLocation()
   const allCarts = useAllCarts()
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [user, setUser] = useState<{ email?: string } | null>(null)
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    (async () => {
-      const [u, { data }] = await Promise.all([
+  const loadShops = () => {
+    setLoading(true)
+    setLoadError(false)
+    ;(async () => {
+      const [u, { data, error }] = await Promise.all([
         getUser(),
         supabase.from('online_shops').select('*').eq('is_enabled', true).order('shop_name'),
       ])
+      if (error) console.error('[shops-fetch]', error)
       setUser(u)
       setShops(data ?? [])
+      setLoadError(!!error)
       setLoading(false)
     })()
-  }, [])
+  }
+
+  useEffect(loadShops, [])
 
   const customerCoords = selected?.latitude != null && selected?.longitude != null
     ? { latitude: selected.latitude, longitude: selected.longitude }
@@ -304,13 +326,13 @@ export default function HomePage() {
       <DecorativeBlobs className="h-[560px] bottom-auto" />
       {/* ── Header ── */}
       <header className={cn(
-        'sticky top-0 z-40 border-b transition-all duration-300 will-change-transform',
+        'sticky top-0 z-40 border-b transition-all duration-300',
         scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-transparent',
         hidden && '-translate-y-full',
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={cn('flex items-center gap-3 transition-all duration-300', scrolled ? 'h-14' : 'h-16')}>
-            <button onClick={() => router.push('/')} className="flex items-center gap-2 shrink-0">
+            <Link href="/" aria-label="ShopNear home" className="flex items-center gap-2 shrink-0">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Store size={17} />
               </span>
@@ -320,21 +342,22 @@ export default function HomePage() {
                   <MapPin size={9} /> Local shops near you
                 </span>
               </div>
-            </button>
+            </Link>
 
             <LocationChip className="shrink-0" />
 
-            <div className={cn('flex-1 mx-auto transition-all duration-300 hidden sm:block', scrolled ? 'max-w-md' : 'max-w-2xl')}>
+            <div className={cn('flex-1 mx-auto transition-all duration-300 hidden sm:block', scrolled ? 'max-w-md' : 'max-w-2xl')} role="search">
               <div className="relative">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
+                  aria-label="Search shops"
                   placeholder="Search shops…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-10 h-10 rounded-xl"
                 />
                 {search && (
-                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                     <X size={14} />
                   </button>
                 )}
@@ -393,17 +416,18 @@ export default function HomePage() {
           </div>
 
           {/* Mobile search row */}
-          <div className="sm:hidden pb-3">
+          <div className="sm:hidden pb-3" role="search">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
+                aria-label="Search shops"
                 placeholder="Search shops…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-10 h-10 rounded-xl"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                   <X size={14} />
                 </button>
               )}
@@ -413,12 +437,19 @@ export default function HomePage() {
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        <HeroCarousel />
-        <TrustStrip />
-        {!search && <RecentlyViewed title="Continue shopping" />}
+        <h1 className="sr-only">Order from local shops near you</h1>
+        {/* Promo/trust/stats are browse-mode chrome — hide them while searching
+            so results sit at the top of the page instead of below the fold. */}
+        {!search && (
+          <>
+            <HeroCarousel />
+            <TrustStrip />
+            <RecentlyViewed title="Continue shopping" />
+          </>
+        )}
 
         {/* Stats */}
-        {!loading && shops.length > 0 && (
+        {!search && !loading && shops.length > 0 && (
           <div className="grid grid-cols-3 gap-3 animate-fade-in">
             {[
               { label: 'Shops', value: shops.length },
@@ -438,6 +469,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => <ShopCardSkeleton key={i} />)}
           </div>
+        ) : loadError ? (
+          <EmptyState
+            icon={Store}
+            title="Couldn't load shops"
+            description="Something went wrong while fetching nearby shops. Please try again."
+            action={<Button variant="secondary" size="sm" onClick={loadShops}>Retry</Button>}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Store}
@@ -455,7 +493,7 @@ export default function HomePage() {
                   badge={<Badge variant="open" className="text-[10px]"><span className="size-1.5 bg-success rounded-full animate-pulse-live" />{openShops.length}</Badge>}
                 />
                 <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {openShops.map((shop, i) => <ShopCard key={shop.id} shop={shop} featured={i === 0} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} onClick={() => vt.push(`/${shop.shop_slug}`)} />)}
+                  {openShops.map((shop, i) => <ShopCard key={shop.id} shop={shop} featured={i === 0} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>
             )}
@@ -468,7 +506,7 @@ export default function HomePage() {
                   badge={<Badge variant="secondary" className="text-[10px]">{closedShops.length}</Badge>}
                 />
                 <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 opacity-90">
-                  {closedShops.map(shop => <ShopCard key={shop.id} shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} onClick={() => vt.push(`/${shop.shop_slug}`)} />)}
+                  {closedShops.map(shop => <ShopCard key={shop.id} shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>
             )}

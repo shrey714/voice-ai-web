@@ -11,6 +11,7 @@ import { useCallback } from 'react'
 export function useViewTransition() {
   const router = useRouter()
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept so call sites passing a source element (for the transition version of this API) don't need to change
   const push = useCallback((href: string, _sourceEl?: HTMLElement | null) => {
     router.push(href)
   }, [router])

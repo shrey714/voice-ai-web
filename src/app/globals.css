@@ -70,7 +70,10 @@
     --muted-foreground: oklch(0.556 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
+    /* Darkened for WCAG AA: was oklch(0.577 …) → only 3.99:1 as text on the
+       destructive/10 badge tint. 0.52 gives ≥5:1 on tint and white; solid
+       bg-destructive carries white foreground so it only gains contrast. */
+    --destructive: oklch(0.52 0.22 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
@@ -92,9 +95,13 @@
     /* ── Brand + semantic status ─────────────────────────────────────── */
     --brand: var(--primary);
     --brand-foreground: var(--primary-foreground);
-    --success: oklch(0.62 0.15 150);
+    /* Darkened for WCAG AA (light mode). These tokens are used BOTH as text on
+       light tints (badges/toasts/status text) and as low-opacity tint fills, so
+       darkening lifts text contrast to ≥4.7:1 while the /10–/15 tints stay light.
+       Was success 0.62 (3.0:1) / warning 0.72 (2.2:1) — both failed. */
+    --success: oklch(0.5 0.14 150);
     --success-foreground: oklch(0.985 0 0);
-    --warning: oklch(0.72 0.16 70);
+    --warning: oklch(0.5 0.13 72);
     --warning-foreground: oklch(0.28 0.05 70);
 
     /* ── Compatibility aliases (bridge from old Sage & Stone tokens) ──── */
@@ -316,7 +323,8 @@ html { scroll-behavior: smooth; }
   filter: blur(56px);
   opacity: 0.5;
   pointer-events: none;
-  will-change: transform;
+  /* No will-change: blobs are static decoration; promoting them just pins
+     three large blurred compositor layers in memory for no benefit. */
 }
 .dark .blob { opacity: 0.32; }
 
@@ -451,12 +459,9 @@ html { scroll-behavior: smooth; }
   will-change: transform, opacity;
 }
 
-/* Smooth theme transition on color-bearing surfaces */
-@media (prefers-reduced-motion: no-preference) {
-  body, header, aside, section, .bg-card, [class*="bg-card"], [class*="bg-background"],
-  [class*="bg-muted"], [class*="border-"] {
-    transition: background-color var(--motion-standard) var(--ease-out),
-                border-color var(--motion-standard) var(--ease-out),
-                color var(--motion-standard) var(--ease-out);
-  }
-}
+/* Theme flips are handled instantly by next-themes' disableTransitionOnChange.
+   The previous broad `[class*="bg-..."] / [class*="border-"]` transition rule
+   matched most of the DOM and animated color on unrelated re-renders (e.g.
+   filtering/sorting a product grid), so it was removed. Add a scoped
+   transition to a specific element only where a deliberate color fade is
+   wanted — never via wildcard attribute selectors. */

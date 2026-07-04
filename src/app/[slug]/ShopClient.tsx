@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { memo, useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -36,13 +36,16 @@ interface ProductCardProps {
   cartQty: number
   shopOpen: boolean
   wishlisted: boolean
-  onToggleWishlist: () => void
-  onAdd: () => void
-  onUpdateQty: (qty: number) => void
+  onToggleWishlist: (product: OnlineProduct) => void
+  onAdd: (product: OnlineProduct) => void
+  onUpdateQty: (productId: string, qty: number) => void
   slug: string
 }
 
-function ProductCard({
+// Memoized so a cart/wishlist change re-renders only the affected card, not the
+// whole grid. Requires the callback props (onAdd/onToggleWishlist/onUpdateQty)
+// to be stable references — see the useCallback handlers in ShopClient.
+const ProductCard = memo(function ProductCard({
   product, cartQty, shopOpen, wishlisted, onToggleWishlist, onAdd, onUpdateQty, slug,
 }: ProductCardProps) {
   const vt = useViewTransition()
@@ -58,12 +61,12 @@ function ProductCard({
 
   const handleWishlist = () => {
     if (!wishlisted) { setBurst(true); setTimeout(() => setBurst(false), 500) }
-    onToggleWishlist()
+    onToggleWishlist(product)
   }
 
   const handleQuickAdd = () => {
     flyToCart(imgRef.current, product.image_url)
-    onAdd()
+    onAdd(product)
   }
 
   // Stable placeholder data (deterministic — no render flicker)
@@ -77,7 +80,7 @@ function ProductCard({
   return (
     <div
       onPointerEnter={() => vt.prefetch(`/${slug}/product/${product.product_id}`)}
-      className="group bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/25 flex flex-col"
+      className="group bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/25 flex flex-col"
     >
       {/* Image */}
       <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden shrink-0 cursor-pointer" onClick={goDetails}>
@@ -107,7 +110,7 @@ function ProductCard({
         <button
           onClick={e => { e.stopPropagation(); handleWishlist() }}
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-background/85 backdrop-blur text-foreground shadow-sm transition-all hover:scale-110 active:scale-95"
+          className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-full bg-background/85 backdrop-blur text-foreground shadow-sm transition-all hover:scale-110 active:scale-95"
         >
           {burst && <span className="absolute inset-0 rounded-full border-2 border-destructive animate-heart-ring" />}
           <Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted ? 'fill-destructive text-destructive scale-110' : 'text-muted-foreground')} />
@@ -198,11 +201,11 @@ function ProductCard({
             </button>
           ) : (
             <div className="shrink-0 flex items-center bg-primary rounded-xl overflow-hidden shadow-sm animate-scale-in">
-              <button onClick={() => onUpdateQty(cartQty - 1)} className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
+              <button onClick={() => onUpdateQty(product.product_id, cartQty - 1)} aria-label="Decrease quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
                 <Minus size={13} />
               </button>
               <span key={cartQty} className="px-1 min-w-[22px] text-center text-sm font-black text-primary-foreground animate-count">{cartQty}</span>
-              <button onClick={() => onUpdateQty(cartQty + 1)} className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
+              <button onClick={() => onUpdateQty(product.product_id, cartQty + 1)} aria-label="Increase quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
                 <Plus size={13} />
               </button>
             </div>
@@ -211,7 +214,7 @@ function ProductCard({
       </div>
     </div>
   )
-}
+})
 
 /* ──────────────────────────────── Page ──────────────────────────────────── */
 export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop; products: OnlineProduct[] }) {
@@ -222,19 +225,36 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   const [cartOpen, setCartOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
-  const [filters, setFilters] = useState<FilterState>({
-    priceRange: [0, 10000],
+  // Slider ceiling derived from the actual catalog (rounded up), not a fixed
+  // ₹10,000 that leaves most shops with a near-useless slider.
+  const maxPrice = useMemo(() => {
+    const prices = products.map(p => p.online_price ?? p.store_price ?? 0)
+    const top = prices.length ? Math.max(...prices) : 1000
+    return Math.max(100, Math.ceil(top / 50) * 50)
+  }, [products])
+
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    priceRange: [0, maxPrice],
     rating: 0,
     inStockOnly: false,
     freeDeliveryOnly: false,
     sortBy: 'relevance',
-  })
+  }))
   const catRefs = useRef<Record<string, HTMLElement | null>>({})
   const pillRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  // Briefly ignore scroll-spy right after a pill click so the highlight doesn't
+  // flicker through intermediate sections during the programmatic smooth-scroll.
+  const clickScrollLock = useRef(false)
 
   const cart = useCart(slug, shop.shop_name)
   const otherCarts = useOtherCarts(slug)
   const wishlist = useWishlist()
+
+  // Keep the latest cart/wishlist in refs so the card callbacks below can be
+  // stable (empty-dep useCallback) — the hooks return fresh objects each render.
+  const cartRef = useRef(cart)
+  const wishlistRef = useRef(wishlist)
+  useEffect(() => { cartRef.current = cart; wishlistRef.current = wishlist })
   const { scrolled } = useHeaderScroll()
   const { selected } = useLocation()
   const open = isShopOpen(shop)
@@ -256,22 +276,30 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
     pillRefs.current[activeCategory]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }, [activeCategory])
 
-  const categories = [...new Set(products.map(p => p.category).filter(Boolean))]
+  const categories = useMemo(
+    () => [...new Set(products.map(p => p.category).filter(Boolean))],
+    [products],
+  )
 
-  const filteredProducts = products
-    .filter(p => {
-      const matchSearch = !search.trim() || p.name.toLowerCase().includes(search.toLowerCase())
-      const matchCat = activeCategory === 'all' || p.category === activeCategory
-      const price = p.online_price ?? p.store_price ?? 0
-      const matchPrice = price >= filters.priceRange[0] && price <= filters.priceRange[1]
-      const rating = seeded(p.product_id + 'r', 3.6, 4.9, 1)
-      const matchRating = filters.rating === 0 || rating >= filters.rating
-      const matchStock = !filters.inStockOnly || p.quantity > 0
-      const freeDelivery = seeded(p.product_id + 'd', 0, 10) > 5
-      const matchDelivery = !filters.freeDeliveryOnly || freeDelivery
-      return matchSearch && matchCat && matchPrice && matchRating && matchStock && matchDelivery
-    })
-    .sort((a, b) => {
+  // Everything EXCEPT the category selector. Reused for the visible list and for
+  // honest per-category counts (so the sidebar number matches what you see).
+  const baseFiltered = useMemo(() => products.filter(p => {
+    const matchSearch = !search.trim() || p.name.toLowerCase().includes(search.toLowerCase())
+    const price = p.online_price ?? p.store_price ?? 0
+    const matchPrice = price >= filters.priceRange[0] && price <= filters.priceRange[1]
+    const rating = seeded(p.product_id + 'r', 3.6, 4.9, 1)
+    const matchRating = filters.rating === 0 || rating >= filters.rating
+    const matchStock = !filters.inStockOnly || p.quantity > 0
+    const freeDelivery = seeded(p.product_id + 'd', 0, 10) > 5
+    const matchDelivery = !filters.freeDeliveryOnly || freeDelivery
+    return matchSearch && matchPrice && matchRating && matchStock && matchDelivery
+  }), [products, search, filters])
+
+  // Category selection is a scroll anchor / highlight — NOT a filter. The list
+  // is narrowed only by search + price/rating/stock/delivery, then sorted, then
+  // grouped into sections that all stay visible (Blinkit/Swiggy-style rail).
+  const visibleProducts = useMemo(() => {
+    return [...baseFiltered].sort((a, b) => {
       const priceA = a.online_price ?? a.store_price ?? 0
       const priceB = b.online_price ?? b.store_price ?? 0
       switch (filters.sortBy) {
@@ -281,28 +309,93 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         default: return 0
       }
     })
+  }, [baseFiltered, filters.sortBy])
 
-  const grouped = categories.reduce<Record<string, OnlineProduct[]>>((acc, cat) => {
-    const items = filteredProducts.filter(p => p.category === cat)
+  const grouped = useMemo(() => categories.reduce<Record<string, OnlineProduct[]>>((acc, cat) => {
+    const items = visibleProducts.filter(p => p.category === cat)
     if (items.length > 0) acc[cat] = items
     return acc
-  }, {})
+  }, {}), [categories, visibleProducts])
+
+  // Scroll-spy: highlight the section currently in view. Safe now that setting
+  // activeCategory only highlights (doesn't filter). Re-observes when sections change.
+  const visibleCats = useMemo(() => Object.keys(grouped), [grouped])
+  useEffect(() => {
+    const els = visibleCats
+      .map(cat => catRefs.current[cat])
+      .filter((el): el is HTMLElement => !!el)
+    if (els.length === 0) return
+    const io = new IntersectionObserver(
+      entries => {
+        if (clickScrollLock.current) return
+        const top = entries
+          .filter(e => e.isIntersecting)
+          .map(e => ({ cat: (e.target as HTMLElement).dataset.cat ?? 'all', y: e.boundingClientRect.top }))
+          .sort((a, b) => a.y - b.y)[0]
+        if (top) setActiveCategory(top.cat)
+      },
+      { rootMargin: '-150px 0px -70% 0px', threshold: 0 },
+    )
+    els.forEach(el => io.observe(el))
+    return () => io.disconnect()
+  }, [visibleCats])
+
+  // Per-category counts under the active filters (minus category). Categories
+  // that filter down to zero are hidden from the sidebar/pills to avoid dead clicks.
+  const categoryCounts = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const p of baseFiltered) if (p.category) m[p.category] = (m[p.category] ?? 0) + 1
+    return m
+  }, [baseFiltered])
+
+  // O(1) qty lookup instead of cart.items.find() per card (was O(cards × cart)).
+  const cartQtyMap = useMemo(
+    () => new Map(cart.items.map(i => [i.productId, i.quantity])),
+    [cart.items],
+  )
 
   const scrollToCategory = (cat: string) => {
     setActiveCategory(cat)
+    clickScrollLock.current = true
+    setTimeout(() => { clickScrollLock.current = false }, 700)
     if (cat !== 'all') catRefs.current[cat]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     else window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAdd = (product: OnlineProduct) => {
-    cart.addItem({
+  // Stable card callbacks (empty deps via refs) so React.memo(ProductCard) holds.
+  const handleAdd = useCallback((product: OnlineProduct) => {
+    cartRef.current.addItem({
       productId: product.product_id,
       name: product.name,
       price: product.online_price ?? product.store_price ?? 0,
       unit: product.unit,
     })
     toast.success('Added to cart', { description: product.name })
-  }
+  }, [])
+
+  const handleToggleWishlist = useCallback((product: OnlineProduct) => {
+    wishlistRef.current.toggle({
+      productId: product.product_id,
+      slug,
+      name: product.name,
+      price: product.online_price ?? product.store_price ?? 0,
+      image_url: product.image_url,
+      unit: product.unit,
+      category: product.category,
+    })
+  }, [slug])
+
+  const handleUpdateQty = useCallback((productId: string, qty: number) => {
+    cartRef.current.updateQty(productId, qty)
+  }, [])
+
+  // For the mobile filter trigger badge (filters are otherwise hidden in a sheet).
+  const activeFilterCount =
+    (filters.rating > 0 ? 1 : 0) +
+    (filters.inStockOnly ? 1 : 0) +
+    (filters.freeDeliveryOnly ? 1 : 0) +
+    (filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice ? 1 : 0) +
+    (filters.sortBy !== 'relevance' ? 1 : 0)
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -388,15 +481,23 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               placeholder={`Search in ${shop.shop_name}…`}
               className="flex-1"
             />
-            <Button variant="secondary" size="icon-sm" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 rounded-xl">
+            <Button variant="secondary" size="icon-sm" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 rounded-xl relative" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
               <Sliders size={16} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 size-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">{activeFilterCount}</span>
+              )}
             </Button>
           </div>
         </div>
       </header>
 
       {/* ── Main layout ── */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex gap-0 lg:gap-6 pb-4 pt-0 lg:pt-4">
+      {/* Extra bottom padding when the floating cart bar is visible so it can't
+          cover the last product row on mobile. */}
+      <div className={cn(
+        'flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex gap-0 lg:gap-6 pt-0 lg:pt-4',
+        cart.count > 0 ? 'pb-28' : 'pb-4',
+      )}>
         {/* Sidebar (desktop) */}
         <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky top-[116px] space-y-4">
           {categories.length > 0 && (
@@ -415,7 +516,8 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                   <Layers size={13} /> All items
                 </button>
                 {categories.map(cat => {
-                  const count = products.filter(p => p.category === cat).length
+                  const count = categoryCounts[cat] ?? 0
+                  if (count === 0) return null // hidden under current filters — avoids a dead click
                   return (
                     <button
                       key={cat}
@@ -435,7 +537,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
           )}
 
           <div className="bg-card rounded-2xl border border-border p-4">
-            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={10000} />
+            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={maxPrice} />
           </div>
         </aside>
 
@@ -455,7 +557,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                 >
                   <Layers size={11} /> All
                 </button>
-                {categories.map(cat => (
+                {categories.filter(cat => (categoryCounts[cat] ?? 0) > 0).map(cat => (
                   <button
                     key={cat}
                     ref={el => { pillRefs.current[cat] = el }}
@@ -508,11 +610,11 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
           )}
 
           {/* Recently viewed (browse mode only) */}
-          {!search && activeCategory === 'all' && (
+          {!search && (
             <RecentlyViewed title="Recently viewed" />
           )}
 
-          {filteredProducts.length === 0 ? (
+          {visibleProducts.length === 0 ? (
             <EmptyState
               icon={Search}
               title="No products found"
@@ -524,7 +626,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
           ) : (
             <div className="space-y-8">
               {Object.entries(grouped).map(([cat, catProducts]) => (
-                <section key={cat} ref={el => { catRefs.current[cat] = el }} className="scroll-mt-28">
+                <section key={cat} data-cat={cat} ref={el => { catRefs.current[cat] = el }} className="scroll-mt-[150px] lg:scroll-mt-24">
                   <div className="flex items-center gap-3 mb-3">
                     <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">{cat}</h2>
                     <div className="flex-1 h-px bg-border" />
@@ -535,21 +637,13 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                       <ProductCard
                         key={product.product_id}
                         product={product}
-                        cartQty={cart.items.find(i => i.productId === product.product_id)?.quantity ?? 0}
+                        cartQty={cartQtyMap.get(product.product_id) ?? 0}
                         shopOpen={open}
                         slug={slug}
                         wishlisted={wishlist.has(product.product_id)}
-                        onToggleWishlist={() => wishlist.toggle({
-                          productId: product.product_id,
-                          slug,
-                          name: product.name,
-                          price: product.online_price ?? product.store_price ?? 0,
-                          image_url: product.image_url,
-                          unit: product.unit,
-                          category: product.category,
-                        })}
-                        onAdd={() => handleAdd(product)}
-                        onUpdateQty={qty => cart.updateQty(product.product_id, qty)}
+                        onToggleWishlist={handleToggleWishlist}
+                        onAdd={handleAdd}
+                        onUpdateQty={handleUpdateQty}
                       />
                     ))}
                   </div>
@@ -570,7 +664,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             <div className="flex items-center gap-2.5">
               <div className="size-8 bg-primary-foreground/15 rounded-xl flex items-center justify-center relative">
                 <ShoppingCart size={16} />
-                <span className="absolute -top-1 -right-1 size-4 bg-yellow-400 text-yellow-900 text-[9px] font-black rounded-full flex items-center justify-center">{cart.count}</span>
+                <span className="absolute -top-1 -right-1 size-4 bg-primary-foreground text-primary text-[9px] font-black rounded-full flex items-center justify-center">{cart.count}</span>
               </div>
               <div className="text-left">
                 <p className="font-bold text-sm leading-tight">View Cart</p>
@@ -601,7 +695,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             <SheetTitle>Filters & Sort</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={10000} onClose={() => setFilterOpen(false)} />
+            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={maxPrice} onClose={() => setFilterOpen(false)} />
           </div>
         </SheetContent>
       </Sheet>
