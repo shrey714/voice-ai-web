@@ -70,6 +70,19 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   const nameRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
 
+  // Measured, not guessed — same reasoning as ShopClient's headerRef: a
+  // hardcoded sticky offset silently drifts out of sync the next time the
+  // header's content changes (e.g. shop_name wrapping to a second line).
+  const headerRef = useRef<HTMLElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => setHeaderHeight(entry.contentRect.height))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const cart = useCart(slug, shop?.shop_name)
   // Re-checked live (not just once on mount) — a cart can sit untouched for
   // days, and the shop could close while this exact tab is left open.
@@ -291,15 +304,15 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border">
+      <header ref={headerRef} className="sticky top-0 z-40 glass border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Go back">
               <ArrowLeft size={18} />
             </Button>
-            <div>
+            <div className="min-w-0">
               <h1 className="font-bold text-base leading-tight text-foreground">Checkout</h1>
-              <p className="text-xs text-muted-foreground">{shop.shop_name}</p>
+              <p className="text-xs text-muted-foreground truncate">{shop.shop_name}</p>
             </div>
           </div>
           <div className="flex items-center pb-4 relative">
@@ -489,7 +502,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
           {/* Right: summary */}
           <div className="space-y-4">
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-4 lg:sticky lg:top-[130px]">
+            <div className="bg-card rounded-2xl border border-border p-5 space-y-4 lg:sticky" style={{ top: headerHeight }}>
               <h2 className="font-bold text-base text-foreground">Order Summary</h2>
 
               {/* Where this order is going */}
