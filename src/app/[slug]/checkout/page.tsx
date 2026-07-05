@@ -246,6 +246,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
     if (coupon) noteParts.push(`Coupon ${coupon} (−${formatPrice(discount)})`)
     const finalNote = noteParts.filter(Boolean).join(' · ')
 
+    // Falls back to 10 minutes if the shopkeeper never touched this setting
+    // (older shops / a zero value shouldn't mean "cancel instantly").
+    const timeoutMinutes = shop.order_timeout_minutes > 0 ? shop.order_timeout_minutes : 10
+
     const { data, error: err } = await supabase
       .from('online_orders')
       .insert({
@@ -260,7 +264,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
         total: parsed.data.total,
         status: 'pending',
         note: finalNote || null,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        expires_at: new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString(),
       })
       .select('id')
       .single()
@@ -278,6 +282,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
     orderPlaced.current = true
     cart.clearCart()
+    // Auto-cancel is enforced server-side by a Supabase pg_cron job that
+    // cancels any 'pending' order past its `expires_at` (set above) — see
+    // supabase/schema.sql section 14. Nothing to trigger from here.
     router.replace(`/${slug}/order/${data.id}`)
   }
 

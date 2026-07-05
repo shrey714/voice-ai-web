@@ -17,6 +17,7 @@ export interface Shop {
   delivery_enabled: boolean;
   delivery_fee: number;
   min_order_amount: number;
+  order_timeout_minutes: number;
   latitude: number | null;
   longitude: number | null;
   address_text: string | null;

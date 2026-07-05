@@ -567,3 +567,68 @@ drop trigger if exists validate_order_before_insert on public.online_orders;
 create trigger validate_order_before_insert
   before insert on public.online_orders
   for each row execute function public.validate_order_before_insert();
+
+
+-- ────────────────────────────────────────────────────────────
+-- 14. Auto-cancel pending orders the shopkeeper never responded to
+--
+--    `expires_at` is set at insert time (checkout page) to
+--    now() + that SHOP'S OWN order_timeout_minutes — so this job
+--    doesn't need to know per-shop settings at all, it just cancels
+--    whatever's already past its own deadline, whatever that shop's
+--    timeout happened to be when the order was placed. Runs every
+--    minute via pg_cron; the `status = 'pending'` guard makes it a
+--    no-op for any order the shopkeeper already accepted/rejected.
+-- ────────────────────────────────────────────────────────────
+create extension if not exists pg_cron with schema extensions;
+
+create or replace function public.cancel_expired_pending_orders()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.online_orders
+  set status = 'cancelled', updated_at = now()
+  where status = 'pending' and expires_at <= now();
+$$;
+
+-- Re-running this file shouldn't create a duplicate schedule.
+select cron.unschedule('cancel-expired-pending-orders')
+  where exists (select 1 from cron.job where jobname = 'cancel-expired-pending-orders');
+
+select cron.schedule(
+  'cancel-expired-pending-orders',
+  '* * * * *', -- every minute
+  $$ select public.cancel_expired_pending_orders(); $$
+);
+
+
+-- ────────────────────────────────────────────────────────────
+-- 15. Guardrails on order_timeout_minutes — the auto-cancel deadline
+--
+--    Bounded to a sane 5-30 minute range with a real default (10),
+--    so this can't be misconfigured to "cancel almost instantly" or
+--    left blank meaning "never cancel". Existing null/out-of-range
+--    rows are clamped into range before NOT NULL/CHECK are enforced,
+--    so this is safe to run against live data.
+-- ────────────────────────────────────────────────────────────
+update public.online_shops
+  set order_timeout_minutes = 10
+  where order_timeout_minutes is null;
+
+update public.online_shops
+  set order_timeout_minutes = least(greatest(order_timeout_minutes, 5), 30)
+  where order_timeout_minutes < 5 or order_timeout_minutes > 30;
+
+alter table public.online_shops
+  alter column order_timeout_minutes set default 10,
+  alter column order_timeout_minutes set not null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'online_shops_order_timeout_range') then
+    alter table public.online_shops
+      add constraint online_shops_order_timeout_range check (order_timeout_minutes between 5 and 30);
+  end if;
+end $$;
