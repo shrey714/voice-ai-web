@@ -193,7 +193,10 @@ function AuthForm() {
                         onChange={e => handleOtpChange(i, e.target.value)}
                         onKeyDown={e => handleOtpKeyDown(i, e)}
                         className={cn(
-                          'flex-1 h-12 text-center text-xl font-black rounded-xl border-2 outline-none transition-all duration-150 bg-muted text-foreground',
+                          // min-w-0 is load-bearing: a bare <input> has a browser-default
+                          // intrinsic width that flex-1 can't shrink below on its own,
+                          // which pushed these boxes off-screen on narrow phones.
+                          'flex-1 min-w-0 h-12 text-center text-xl font-black rounded-xl border-2 outline-none transition-all duration-150 bg-muted text-foreground',
                           digit ? 'border-primary bg-primary/10 text-primary' : 'border-border',
                           'focus:border-primary focus:bg-card focus:ring-3 focus:ring-primary/10',
                         )}
