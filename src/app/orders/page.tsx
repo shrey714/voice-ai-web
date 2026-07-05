@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryState, parseAsStringEnum } from 'nuqs'
 import { supabase } from '@/lib/supabase'
 import { OnlineOrder } from '@/lib/types'
 import { cn, formatPrice, formatDate } from '@/lib/utils'
@@ -48,19 +49,35 @@ type OrderRow = OnlineOrder & { shop_name?: string; shop_slug?: string }
 // back as the related row (or null if the shop was deleted) via the FK join.
 type OrderJoinRow = OnlineOrder & { online_shops: { shop_name: string; shop_slug: string } | null }
 
-export default function OrdersPage() {
+function OrdersPageInner() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'active' | 'done'>('all')
+  // Refresh-persistent and shareable (e.g. a support agent linking a customer
+  // straight to their active orders) — same reasoning as the shop page's
+  // search/filters, see ShopClient.tsx's filterParsers comment.
+  const [filter, setFilter] = useQueryState('filter', parseAsStringEnum(['all', 'active', 'done'] as const).withDefault('all').withOptions({ history: 'replace' }))
+  // Read inside the mount-only effect below without making it re-run (and
+  // refetch every order) on every tab switch — same ref pattern ShopClient
+  // uses to keep callbacks stable while reading the latest value.
+  const filterRef = useRef(filter)
+  useEffect(() => { filterRef.current = filter })
 
   const loadOrders = () => {
     setLoading(true)
     setLoadError(false)
     ;(async () => {
       const { data: session } = await supabase.auth.getSession()
-      if (!session.session) { router.replace('/auth?redirect=/orders'); return }
+      if (!session.session) {
+        // Preserve ?filter=... across the auth detour — otherwise a shared
+        // "check your active orders" link loses its filter for anyone who
+        // wasn't already signed in.
+        const f = filterRef.current
+        const redirectTo = f !== 'all' ? `/orders?filter=${f}` : '/orders'
+        router.replace(`/auth?redirect=${encodeURIComponent(redirectTo)}`)
+        return
+      }
 
       const { data, error } = await supabase
         .from('online_orders')
@@ -214,5 +231,13 @@ export default function OrdersPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense>
+      <OrdersPageInner />
+    </Suspense>
   )
 }
