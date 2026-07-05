@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useQueryState, parseAsString } from 'nuqs'
 import { supabase, getUser } from '@/lib/supabase'
 import { isShopOpen } from '@/lib/shop'
 import { Shop } from '@/lib/types'
@@ -259,7 +260,7 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
 }
 
 /* ──────────────────────────────── Page ──────────────────────────────────── */
-export default function HomePage() {
+function HomePageInner() {
   const router = useRouter()
   const { hidden, scrolled } = useHeaderScroll()
   const wishlist = useWishlist()
@@ -269,7 +270,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [user, setUser] = useState<{ email?: string } | null>(null)
-  const [search, setSearch] = useState('')
+  // Shareable/bookmarkable/refresh-persistent, same reasoning as the shop
+  // page's product search — see ShopClient.tsx's filterParsers comment.
+  const [search, setSearch] = useQueryState('q', parseAsString.withDefault('').withOptions({ history: 'replace', throttleMs: 300 }))
 
   const loadShops = () => {
     setLoading(true)
@@ -514,5 +517,13 @@ export default function HomePage() {
         )}
       </main>
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense>
+      <HomePageInner />
+    </Suspense>
   )
 }
