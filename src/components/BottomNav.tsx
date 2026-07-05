@@ -22,13 +22,17 @@ export function BottomNav() {
   if (!SHOWN_ON.includes(pathname)) return null
 
   const cartCount = allCarts.reduce((sum, c) => sum + c.count, 0)
+  // Cart has no route of its own — it jumps to whichever single shop has a
+  // basket, or home if there are none/several — so unlike the other tabs it
+  // can legitimately resolve to the same href as Home. It's never "active"
+  // the way a real destination tab is; it's a shortcut, styled by its badge.
   const cartHref = allCarts.length === 1 ? `/${allCarts[0].slug}` : '/'
 
   const tabs = [
-    { href: '/', label: 'Home', Icon: Store, badge: 0 },
-    { href: cartHref, label: 'Cart', Icon: ShoppingBasket, badge: cartCount },
-    { href: '/wishlist', label: 'Wishlist', Icon: Heart, badge: wishlist.count },
-    { href: '/orders', label: 'Orders', Icon: ShoppingBag, badge: 0 },
+    { href: '/', label: 'Home', Icon: Store, badge: 0, isCart: false },
+    { href: cartHref, label: 'Cart', Icon: ShoppingBasket, badge: cartCount, isCart: true },
+    { href: '/wishlist', label: 'Wishlist', Icon: Heart, badge: wishlist.count, isCart: false },
+    { href: '/orders', label: 'Orders', Icon: ShoppingBag, badge: 0, isCart: false },
   ]
 
   return (
@@ -40,8 +44,8 @@ export function BottomNav() {
         aria-label="Primary"
       >
         <div className="grid grid-cols-4 h-16">
-          {tabs.map(({ href, label, Icon, badge }) => {
-            const active = href === '/' ? pathname === '/' : pathname === href
+          {tabs.map(({ href, label, Icon, badge, isCart }) => {
+            const active = !isCart && pathname === href
             return (
               <Link
                 key={label}

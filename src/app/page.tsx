@@ -138,7 +138,7 @@ function TrustStrip() {
   return (
     <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
       {TRUST.map(({ Icon, label }) => (
-        <div key={label} className="flex items-center gap-2.5 rounded-2xl border border-border bg-card px-3 py-3">
+        <div key={label} className="flex flex-col items-center text-center gap-2 rounded-2xl border border-border bg-card px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
             <Icon size={16} />
           </span>
