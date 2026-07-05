@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { SITE_URL, SITE_NAME } from '@/lib/site'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Footer } from '@/components/Footer'
+import { BottomNav } from '@/components/BottomNav'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </a>
             <div id="content" className="flex-1">{children}</div>
             <Footer />
+            <BottomNav />
             <Toaster position="top-center" closeButton gap={10} />
           </TooltipProvider>
         </ThemeProvider>

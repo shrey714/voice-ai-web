@@ -251,6 +251,20 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   // flicker through intermediate sections during the programmatic smooth-scroll.
   const clickScrollLock = useRef(false)
 
+  // Measured, not guessed: the header's height varies (delivery/pickup label,
+  // long shop names, responsive breakpoints), so the category-pills bar and
+  // desktop sidebar stick right below it via this instead of a hand-tuned
+  // pixel offset that silently goes stale whenever the header's content changes.
+  const headerRef = useRef<HTMLElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => setHeaderHeight(entry.contentRect.height))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const cart = useCart(slug, shop.shop_name)
   const otherCarts = useOtherCarts(slug)
   const wishlist = useWishlist()
@@ -405,10 +419,13 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Top Nav ── */}
-      <header className={cn(
-        'sticky top-0 z-40 border-b transition-all duration-300',
-        scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-border',
-      )}>
+      <header
+        ref={headerRef}
+        className={cn(
+          'sticky top-0 z-40 border-b transition-all duration-300',
+          scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-border',
+        )}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="shrink-0 text-muted-foreground hover:text-foreground -ml-1" aria-label="Back to shops">
@@ -428,13 +445,18 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                   <Info size={12} className="text-muted-foreground shrink-0" />
                 </h1>
                 {shop.delivery_enabled && (
+                  // min-w-0 + truncate on the label: without it, this row can wrap to two
+                  // lines on narrow phones and overflow the header's fixed h-14 row height
+                  // (the sticky offsets below now measure this height via ResizeObserver
+                  // rather than assuming one, but the row overflowing its own box is still
+                  // a visible clipping bug on its own).
                   canDeliverHere ? (
-                    <p className="text-[11px] text-primary flex items-center gap-1 font-semibold">
-                      <Bike size={10} /> Delivery available
+                    <p className="text-[11px] text-primary flex items-center gap-1 font-semibold min-w-0">
+                      <Bike size={10} className="shrink-0" /> <span className="truncate">Delivery available</span>
                     </p>
                   ) : (
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold">
-                      <Store size={10} /> Pickup only here
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold min-w-0">
+                      <Store size={10} className="shrink-0" /> <span className="truncate">Pickup only here</span>
                     </p>
                   )
                 )}
@@ -504,7 +526,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         cart.count > 0 ? 'pb-28' : 'pb-4',
       )}>
         {/* Sidebar (desktop) */}
-        <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky top-[116px] space-y-4">
+        <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky space-y-4" style={{ top: headerHeight }}>
           {categories.length > 0 && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               <div className="px-3.5 py-2.5 border-b border-border">
@@ -550,7 +572,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="flex-1 min-w-0 space-y-5">
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
-            <div className="lg:hidden sticky top-[105px] z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 glass-strong border-b border-border overflow-x-auto no-scrollbar">
+            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 glass-strong border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
               <div className="flex gap-2 w-max">
                 <button
                   ref={el => { pillRefs.current['all'] = el }}
