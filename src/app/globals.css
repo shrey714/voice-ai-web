@@ -465,3 +465,141 @@ html { scroll-behavior: smooth; }
    filtering/sorting a product grid), so it was removed. Add a scoped
    transition to a specific element only where a deliberate color fade is
    wanted — never via wildcard attribute selectors. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID GLASS — a navigation/chrome material, deliberately not a content
+   one. Apple's own Liquid Glass is reserved for nav bars, tab bars, sheets
+   and floating controls — never list cells or cards, both because dense
+   text needs a stable, opaque background to stay legible, and because
+   backdrop-filter is too expensive to run on dozens of simultaneous
+   elements (a product grid) without hurting scroll performance.
+   Real third-party "liquid glass" packages (checked npm before writing
+   this) all lean on `backdrop-filter: url(#svg-filter)` for true optical
+   refraction, which only runs in Chromium — Safari and Firefox silently
+   drop the filter. That's not acceptable for an app whose customers are
+   overwhelmingly on mobile Safari, so this is built from parts that
+   render everywhere: backdrop blur + saturation (the actual "glass" read),
+   a layered inset highlight standing in for a specular edge-light, a noise
+   overlay so the blur doesn't band into visible gradient steps, and
+   adaptive tinting via the existing --card/--foreground tokens so it
+   still looks right in dark mode without a second hand-tuned palette.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* No `position` here on purpose — every current use site is already sticky/
+   fixed (header, bottom nav, floating bars), and forcing `position: relative`
+   in this class fought Tailwind's `sticky`/`fixed` utilities applied
+   alongside it on the same element (same specificity, but this stylesheet
+   isn't inside Tailwind's cascade layer, so it silently won and downgraded
+   the element to `relative` — the header just scrolled away instead of
+   sticking). Matches how .bg-noise below already handles this: the ::before
+   needs *a* positioned ancestor, and the call site already provides one. If
+   you use this class on a `position: static` element, add `relative`
+   yourself at the call site. */
+.liquid-glass {
+  isolation: isolate;
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 45%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 20%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
+    0 8px 32px color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+.dark .liquid-glass {
+  background: color-mix(in srgb, var(--card) 42%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 12%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 30%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Opaque enough to guarantee text contrast on its own (headers, sheet
+   chrome) — same highlight treatment, richer/less see-through fill.
+   No `position` here either — see the comment above .liquid-glass. */
+.liquid-glass-strong {
+  isolation: isolate;
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 50%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 25%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 5%, transparent),
+    0 12px 40px color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+.dark .liquid-glass-strong {
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 14%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 35%, transparent),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.liquid-glass::before, .liquid-glass-strong::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Press/hover morph for tappable glass (floating buttons, pills). A real
+   lens would refract more as light grazes the edge on hover — approximated
+   here with a brightening sweep + a slight scale-down on press so it still
+   reads as "material responding to touch" without an SVG displacement map. */
+.liquid-glass-interactive {
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+}
+.liquid-glass-interactive:hover {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 60%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 30%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
+    0 10px 36px color-mix(in oklch, var(--foreground) 14%, transparent);
+}
+.liquid-glass-interactive:active {
+  transform: scale(0.97);
+}
+
+/* Lighter sibling for content cards (product/shop cards): no backdrop-filter
+   at all, deliberately. Cards sit in a static grid on the page's own solid
+   background — there's nothing scrolling behind them to blur, so backdrop
+   blur there would be pure cost (every simultaneous card repaints on
+   scroll) for zero visual benefit. This gets the "molded from one material"
+   read from the specular highlight alone: a bright top edge, a soft bottom
+   inset shadow, no transparency to fight for text contrast against. */
+.liquid-surface {
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 55%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 4%, transparent);
+}
+.dark .liquid-surface {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent);
+}
+
+/* Accessibility: transparency and heavy blur are exactly the kind of
+   effect prefers-reduced-transparency exists for (vestibular/visual
+   strain, or just a user who finds moving blur distracting) — fall back
+   to a solid, high-contrast surface rather than degrading gracefully by
+   accident. Same intent as the prefers-reduced-motion block above. */
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass, .liquid-glass-strong {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent),
+                0 4px 12px color-mix(in oklch, var(--foreground) 5%, transparent);
+  }
+  .liquid-glass::before, .liquid-glass-strong::before {
+    display: none;
+  }
+}

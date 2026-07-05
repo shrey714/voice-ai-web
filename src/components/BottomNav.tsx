@@ -40,7 +40,7 @@ export function BottomNav() {
       {/* Spacer in normal flow so the fixed bar below never covers page content. */}
       <div className="md:hidden h-[calc(4rem+env(safe-area-inset-bottom))]" aria-hidden />
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 liquid-glass-strong border-t border-border pb-[env(safe-area-inset-bottom)]"
         aria-label="Primary"
       >
         <div className="grid grid-cols-4 h-16">

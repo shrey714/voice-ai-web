@@ -177,7 +177,7 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
       aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}`}
       className={cn(
         'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full',
-        featured ? 'border-gradient shadow-soft' : 'border border-border bg-card hover:border-primary/30',
+        featured ? 'border-gradient shadow-soft' : 'border border-border liquid-surface hover:border-primary/30',
       )}
     >
       {/* Banner */}
@@ -330,7 +330,7 @@ function HomePageInner() {
       {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-40 border-b transition-all duration-300',
-        scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-transparent',
+        scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-transparent',
         hidden && '-translate-y-full',
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

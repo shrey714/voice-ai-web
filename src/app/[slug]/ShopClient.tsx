@@ -105,7 +105,7 @@ const ProductCard = memo(function ProductCard({
   return (
     <div
       onPointerEnter={() => vt.prefetch(`/${slug}/product/${product.product_id}`)}
-      className="group bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/25 flex flex-col"
+      className="group liquid-surface rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/25 flex flex-col"
     >
       {/* Image */}
       <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden shrink-0 cursor-pointer" onClick={goDetails}>
@@ -473,7 +473,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         ref={headerRef}
         className={cn(
           'sticky top-0 z-40 border-b transition-all duration-300',
-          scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-border',
+          scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-border',
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -622,7 +622,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="flex-1 min-w-0 space-y-5">
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
-            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 glass-strong border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
+            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
               <div className="flex gap-2 w-max">
                 <button
                   ref={el => { pillRefs.current['all'] = el }}

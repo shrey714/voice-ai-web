@@ -154,7 +154,7 @@ export function ProductDetailClient({
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border">
+      <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
           <Button variant="ghost" size="icon-sm" onClick={() => vt.back()} className="-ml-1" aria-label="Go back">
             <ArrowLeft size={18} />
@@ -394,7 +394,7 @@ export function ProductDetailClient({
 
       {/* Sticky mobile add-to-cart bar */}
       {!outOfStock && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border p-3 flex items-center gap-3">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 liquid-glass-strong border-t border-border p-3 flex items-center gap-3">
           <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card shrink-0">
             <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
             <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
