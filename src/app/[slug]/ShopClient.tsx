@@ -3,6 +3,10 @@ import { memo, useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import {
+  useQueryState, useQueryStates,
+  parseAsString, parseAsInteger, parseAsBoolean, parseAsStringEnum,
+} from 'nuqs'
 import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { useCart, useOtherCarts } from '@/lib/cart'
 import { useWishlist } from '@/lib/wishlist'
@@ -29,6 +33,27 @@ import {
   Bike, Clock, ShoppingBag, Layers, ArrowRight, Sliders, Info, ShoppingBasket, Store,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
+
+/* ── URL-synced search/filter state ──────────────────────────────────────────
+ * Shareable/bookmarkable/refresh-persistent filtered views, and working
+ * back/forward navigation — same as Amazon/Flipkart/Myntra category pages.
+ * history: 'replace' + a shared throttle so typing a search query or
+ * clicking through filters doesn't spam browser history with one entry per
+ * keystroke/click (nuqs' local state updates immediately either way — only
+ * the URL/history write is throttled).
+ *
+ * priceRange is deliberately NOT included here: its "default" is the shop's
+ * actual min/max product price, computed per shop, not a fixed value nuqs'
+ * clearOnDefault can compare against — kept as local state instead.
+ */
+const shopQueryOptions = { history: 'replace' as const, throttleMs: 300 }
+const filterParsers = {
+  q: parseAsString.withDefault(''),
+  sort: parseAsStringEnum(['relevance', 'price-asc', 'price-desc', 'rating'] as const).withDefault('relevance'),
+  rating: parseAsInteger.withDefault(0),
+  inStock: parseAsBoolean.withDefault(false),
+  freeDelivery: parseAsBoolean.withDefault(false),
+}
 
 /* ──────────────────────────── Product Card ──────────────────────────────── */
 interface ProductCardProps {
@@ -225,7 +250,15 @@ const ProductCard = memo(function ProductCard({
 export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop; products: OnlineProduct[] }) {
   const router = useRouter()
   const [user, setUser] = useState<SupaUser | null>(null)
-  const [search, setSearch] = useState('')
+  const [queryState, setQueryState] = useQueryStates(filterParsers, shopQueryOptions)
+  const search = queryState.q
+  // categoryParam is deliberately NOT the source of truth for the active
+  // category — that stays local state (below), since it's also driven by a
+  // scroll-spy that fires far too often to write back to the URL/history on
+  // every tick. This is read once on mount to deep-link into a category, and
+  // written on explicit pill/sidebar clicks (see scrollToCategory) — a
+  // one-way sync in each direction, not a continuously bound value.
+  const [categoryParam, setCategoryParam] = useQueryState('category', { ...shopQueryOptions, defaultValue: 'all', clearOnDefault: true })
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [cartOpen, setCartOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -238,13 +271,21 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
     return Math.max(100, Math.ceil(top / 50) * 50)
   }, [products])
 
-  const [filters, setFilters] = useState<FilterState>(() => ({
-    priceRange: [0, maxPrice],
-    rating: 0,
-    inStockOnly: false,
-    freeDeliveryOnly: false,
-    sortBy: 'relevance',
-  }))
+  // priceRange stays local (see note above filterParsers); everything else in
+  // FilterState is derived from the URL-synced queryState.
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, maxPrice])
+  const filters: FilterState = useMemo(() => ({
+    priceRange,
+    rating: queryState.rating,
+    inStockOnly: queryState.inStock,
+    freeDeliveryOnly: queryState.freeDelivery,
+    sortBy: queryState.sort,
+  }), [priceRange, queryState.rating, queryState.inStock, queryState.freeDelivery, queryState.sort])
+
+  const handleFiltersChange = (next: FilterState) => {
+    setPriceRange(next.priceRange)
+    setQueryState({ rating: next.rating, inStock: next.inStockOnly, freeDelivery: next.freeDeliveryOnly, sort: next.sortBy })
+  }
   const catRefs = useRef<Record<string, HTMLElement | null>>({})
   const pillRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   // Briefly ignore scroll-spy right after a pill click so the highlight doesn't
@@ -375,11 +416,20 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
 
   const scrollToCategory = (cat: string) => {
     setActiveCategory(cat)
+    setCategoryParam(cat) // explicit choice — worth reflecting in the URL, unlike scroll-spy updates
     clickScrollLock.current = true
     setTimeout(() => { clickScrollLock.current = false }, 700)
     if (cat !== 'all') catRefs.current[cat]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     else window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  // Deep-link entry point: if the page was opened with ?category=X (a shared
+  // link), jump straight there once on mount. Deliberately not re-run when
+  // categoryParam changes afterwards — see the note by its declaration above.
+  useEffect(() => {
+    if (categoryParam !== 'all' && categories.includes(categoryParam)) scrollToCategory(categoryParam)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Stable card callbacks (empty deps via refs) so React.memo(ProductCard) holds.
   const handleAdd = useCallback((product: OnlineProduct) => {
@@ -502,7 +552,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             <LocationChip className="shrink-0 max-w-[45%] sm:max-w-[240px] border-r border-border pr-2" />
             <ProductSearch
               value={search}
-              onChange={v => { setSearch(v); setActiveCategory('all') }}
+              onChange={v => { setQueryState({ q: v }); setActiveCategory('all') }}
               products={products}
               slug={slug}
               placeholder={`Search in ${shop.shop_name}…`}
@@ -564,7 +614,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
           )}
 
           <div className="bg-card rounded-2xl border border-border p-4">
-            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={maxPrice} />
+            <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
           </div>
         </aside>
 
@@ -647,7 +697,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               title="No products found"
               description={search ? `No results for "${search}".` : 'Nothing here yet.'}
               action={(search || activeCategory !== 'all')
-                ? <Button variant="secondary" size="sm" onClick={() => { setSearch(''); setActiveCategory('all') }}>Show all products</Button>
+                ? <Button variant="secondary" size="sm" onClick={() => { setQueryState({ q: '' }); setActiveCategory('all'); setCategoryParam('all') }}>Show all products</Button>
                 : undefined}
             />
           ) : (
@@ -722,7 +772,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             <SheetTitle>Filters & Sort</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <ProductFilters filters={filters} onFiltersChange={setFilters} maxPrice={maxPrice} onClose={() => setFilterOpen(false)} />
+            <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} onClose={() => setFilterOpen(false)} />
           </div>
         </SheetContent>
       </Sheet>

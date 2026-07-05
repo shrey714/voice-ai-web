@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import './globals.css'
 import { cn } from '@/lib/utils'
 import { SITE_URL, SITE_NAME } from '@/lib/site'
@@ -56,20 +57,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className={cn('min-h-screen bg-background font-sans antialiased flex flex-col')}>
-        <ThemeProvider>
-          <TooltipProvider delayDuration={200}>
-            <a
-              href="#content"
-              className="sr-only focus:not-sr-only focus:fixed focus:z-100 focus:top-3 focus:left-3 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-premium"
-            >
-              Skip to content
-            </a>
-            <div id="content" className="flex-1">{children}</div>
-            <Footer />
-            <BottomNav />
-            <Toaster position="top-center" closeButton gap={10} />
-          </TooltipProvider>
-        </ThemeProvider>
+        <NuqsAdapter>
+          <ThemeProvider>
+            <TooltipProvider delayDuration={200}>
+              <a
+                href="#content"
+                className="sr-only focus:not-sr-only focus:fixed focus:z-100 focus:top-3 focus:left-3 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-premium"
+              >
+                Skip to content
+              </a>
+              <div id="content" className="flex-1">{children}</div>
+              <Footer />
+              <BottomNav />
+              <Toaster position="top-center" closeButton gap={10} />
+            </TooltipProvider>
+          </ThemeProvider>
+        </NuqsAdapter>
       </body>
     </html>
   )
