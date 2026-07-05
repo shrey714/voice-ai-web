@@ -466,7 +466,7 @@ export default function HomePage() {
 
         {/* Shops */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4">
             {[...Array(8)].map((_, i) => <ShopCardSkeleton key={i} />)}
           </div>
         ) : loadError ? (
@@ -492,7 +492,7 @@ export default function HomePage() {
                   icon={Sparkles}
                   badge={<Badge variant="open" className="text-[10px]"><span className="size-1.5 bg-success rounded-full animate-pulse-live" />{openShops.length}</Badge>}
                 />
-                <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="stagger grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4">
                   {openShops.map((shop, i) => <ShopCard key={shop.id} shop={shop} featured={i === 0} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>
@@ -505,7 +505,7 @@ export default function HomePage() {
                   icon={Clock}
                   badge={<Badge variant="secondary" className="text-[10px]">{closedShops.length}</Badge>}
                 />
-                <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 opacity-90">
+                <div className="stagger grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4 opacity-90">
                   {closedShops.map(shop => <ShopCard key={shop.id} shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>
