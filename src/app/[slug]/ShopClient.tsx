@@ -27,6 +27,7 @@ import { RecentlyViewed } from '@/components/RecentlyViewed'
 import { LocationChip } from '@/components/LocationChip'
 import { ShopInfoSheet } from '@/components/ShopInfoSheet'
 import { CartSheet } from '@/components/CartSheet'
+import { GlassIconButton } from '@/components/GlassIconButton'
 import { useHeaderScroll } from '@/lib/useScroll'
 import {
   Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart,
@@ -132,14 +133,15 @@ const ProductCard = memo(function ProductCard({
         )}
 
         {/* Wishlist */}
-        <button
+        <GlassIconButton
           onClick={e => { e.stopPropagation(); handleWishlist() }}
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-full bg-background/85 backdrop-blur text-foreground shadow-sm transition-all hover:scale-110 active:scale-95"
+          className="absolute top-2 right-2 active:scale-95"
+          color={wishlisted ? 'linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))' : undefined}
+          icon={<Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted && 'fill-white scale-110')} />}
         >
-          {burst && <span className="absolute inset-0 rounded-full border-2 border-destructive animate-heart-ring" />}
-          <Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted ? 'fill-destructive text-destructive scale-110' : 'text-muted-foreground')} />
-        </button>
+          {burst && <span className="absolute inset-0 rounded-[1.25em] border-2 border-destructive animate-heart-ring" />}
+        </GlassIconButton>
 
         {/* Free delivery ribbon */}
         {freeDelivery && !outOfStock && (

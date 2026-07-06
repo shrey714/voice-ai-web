@@ -17,6 +17,7 @@ import { RatingStars } from '@/components/RatingStars'
 import { SectionHeader } from '@/components/SectionHeader'
 import { DeliveryCountdown } from '@/components/DeliveryCountdown'
 import { CartSheet } from '@/components/CartSheet'
+import { GlassIconButton } from '@/components/GlassIconButton'
 import {
   Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext,
 } from '@/components/ui/carousel'
@@ -161,15 +162,12 @@ export function ProductDetailClient({
           </Button>
           {/* Not an <h1>: the page's single <h1> is the product title in the details column below. */}
           <p className="font-bold text-foreground flex-1 truncate text-sm sm:text-base" aria-hidden>{product.name}</p>
-          <Button variant="ghost" size="icon-sm" onClick={handleShare} className="text-muted-foreground" aria-label="Share">
-            <Share2 size={17} />
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={() => setCartOpen(true)} className="text-muted-foreground relative" aria-label="View cart">
-            <ShoppingCart size={17} />
+          <GlassIconButton onClick={handleShare} aria-label="Share" icon={<Share2 size={16} />} />
+          <GlassIconButton onClick={() => setCartOpen(true)} aria-label="View cart" icon={<ShoppingCart size={16} />}>
             {cart.count > 0 && (
               <span className="absolute -top-0.5 -right-0.5 size-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">{cart.count}</span>
             )}
-          </Button>
+          </GlassIconButton>
         </div>
       </header>
 
@@ -193,7 +191,7 @@ export function ProductDetailClient({
               {discountPct > 0 && <Badge variant="destructive" className="text-xs font-bold">{discountPct}% OFF</Badge>}
               {freeDelivery && <Badge variant="success" className="text-xs font-bold"><Bike /> FREE DELIVERY</Badge>}
             </div>
-            <button
+            <GlassIconButton
               onClick={() => {
                 if (!wishlisted) { setBurst(true); setTimeout(() => setBurst(false), 500) }
                 wishlist.toggle({
@@ -207,11 +205,13 @@ export function ProductDetailClient({
                 })
               }}
               aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-              className="absolute top-4 right-4 flex size-10 items-center justify-center rounded-full bg-background/85 backdrop-blur shadow-sm transition-all hover:scale-110 active:scale-95"
+              className="absolute top-4 right-4 active:scale-95"
+              size={40}
+              color={wishlisted ? 'linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))' : undefined}
+              icon={<Heart size={18} className={cn(burst && 'animate-heart-burst', wishlisted && 'fill-white')} />}
             >
-              {burst && <span className="absolute inset-0 rounded-full border-2 border-destructive animate-heart-ring" />}
-              <Heart size={18} className={cn(burst && 'animate-heart-burst', wishlisted ? 'fill-destructive text-destructive' : 'text-muted-foreground')} />
-            </button>
+              {burst && <span className="absolute inset-0 rounded-[1.25em] border-2 border-destructive animate-heart-ring" />}
+            </GlassIconButton>
           </div>
         </div>
 
