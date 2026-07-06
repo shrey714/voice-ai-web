@@ -56,12 +56,19 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={cn(inter.variable, 'overflow-x-clip')} suppressHydrationWarning>
       {/* No bg-background here — DecorativeBlobs (below) provides the solid
           base fill itself, so there's no ambiguity between body's own
           background and a fixed, negative-z-index child fighting over which
           one is "the" page background. */}
-      <body className={cn('min-h-screen font-sans antialiased flex flex-col')}>
+      {/* overflow-x-clip: decorative bleed (BorderGlow's outer glow span, blob
+          gradients) can extend past a viewport-edge element without this —
+          harmless in isolation, but it expands the document's own scrollable
+          width, causing whole-page horizontal scroll and, downstream, a
+          layout-shift glitch in sheet slide-in animations that assume the
+          viewport width is stable. `clip` (not `hidden`) only clips paint —
+          it doesn't create a new scroll container or touch overflow-y. */}
+      <body className={cn('min-h-screen font-sans antialiased flex flex-col overflow-x-clip')}>
         <NuqsAdapter>
           <ThemeProvider>
             <TooltipProvider delayDuration={200}>

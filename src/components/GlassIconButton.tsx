@@ -29,18 +29,28 @@ export function GlassIconButton({ icon, color, size = 36, className, style, chil
       style={{ width: size, height: size, fontSize: size / 4.5, ...style }}
       {...props}
     >
-      <span
-        className="absolute inset-0 rounded-[1.25em] block transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] origin-[100%_100%] rotate-[15deg] [will-change:transform] group-hover:[transform:rotate(25deg)_translate3d(-0.5em,-0.5em,0.5em)]"
-        style={{
-          background: color ?? 'linear-gradient(var(--primary), var(--chart-2))',
-          boxShadow: '0.5em -0.5em 0.75em color-mix(in oklch, var(--foreground) 18%, transparent)',
-        }}
-      />
-      <span
-        className="absolute inset-0 rounded-[1.25em] bg-white/15 flex backdrop-blur-[0.75em] transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] [will-change:transform] group-hover:[transform:translate3d(0,0,2em)]"
-        style={{ boxShadow: 'inset 0 0 0 0.1em rgba(255,255,255,0.3)' }}
-      >
-        <span className="m-auto flex items-center justify-center text-white">{icon}</span>
+      {/* Clips the backing tile's resting 15deg tilt to the button's own rounded
+          bounds — its corners are meant to peek out from behind the glass pane
+          (that's the point), but only within this box, not past it. The
+          showcase this is adapted from gets away without clipping because its
+          grid has huge (5em) gaps to absorb the overflow; a compact button
+          sitting flush against other UI doesn't have that buffer. `children`
+          (badges, burst rings) stays outside this clip so it can still overflow
+          the button edge on purpose. */}
+      <span className="absolute inset-0 rounded-[1.25em] overflow-hidden [transform-style:preserve-3d]">
+        <span
+          className="absolute inset-0 rounded-[1.25em] block transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] origin-[100%_100%] rotate-[15deg] [will-change:transform] group-hover:[transform:rotate(25deg)_translate3d(-0.5em,-0.5em,0.5em)]"
+          style={{
+            background: color ?? 'linear-gradient(var(--primary), var(--chart-2))',
+            boxShadow: '0.5em -0.5em 0.75em color-mix(in oklch, var(--foreground) 18%, transparent)',
+          }}
+        />
+        <span
+          className="absolute inset-0 rounded-[1.25em] bg-white/15 flex backdrop-blur-[0.75em] transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] [will-change:transform] group-hover:[transform:translate3d(0,0,2em)]"
+          style={{ boxShadow: 'inset 0 0 0 0.1em rgba(255,255,255,0.3)' }}
+        >
+          <span className="m-auto flex items-center justify-center text-white">{icon}</span>
+        </span>
       </span>
       {children}
     </button>
