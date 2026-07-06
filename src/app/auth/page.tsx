@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { cn, safeRedirectPath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { GrainientBackground } from '@/components/GrainientBackground'
 import {
   Phone, ArrowLeft, ShieldCheck, RotateCcw,
   ChevronRight, Loader2, Store, Check, AlertCircle, Lock,
@@ -99,7 +100,8 @@ function AuthForm() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background relative isolate flex flex-col">
+      <GrainientBackground className="absolute inset-0 -z-10" />
       {/* Top nav */}
       <div className="flex items-center gap-2 p-4 sm:p-6">
         {step === 'otp' && (
