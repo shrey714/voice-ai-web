@@ -28,6 +28,7 @@ import { LocationChip } from '@/components/LocationChip'
 import { ShopInfoSheet } from '@/components/ShopInfoSheet'
 import { CartSheet } from '@/components/CartSheet'
 import { GlassIconButton } from '@/components/GlassIconButton'
+import BorderGlow from '@/components/BorderGlow'
 import { useHeaderScroll } from '@/lib/useScroll'
 import {
   Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart,
@@ -104,9 +105,9 @@ const ProductCard = memo(function ProductCard({
   const goDetails = () => vt.push(`/${slug}/product/${product.product_id}`, imgRef.current)
 
   return (
-    <div
+    <BorderGlow
       onPointerEnter={() => vt.prefetch(`/${slug}/product/${product.product_id}`)}
-      className="group liquid-surface rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/25 flex flex-col"
+      className="group liquid-surface transition-shadow duration-300 hover:shadow-lg flex flex-col"
     >
       {/* Image */}
       <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden shrink-0 cursor-pointer" onClick={goDetails}>
@@ -244,7 +245,7 @@ const ProductCard = memo(function ProductCard({
           )}
         </div>
       </div>
-    </div>
+    </BorderGlow>
   )
 })
 

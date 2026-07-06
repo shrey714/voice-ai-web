@@ -27,6 +27,7 @@ import { Reveal } from '@/components/Reveal'
 import { useHeaderScroll } from '@/lib/useScroll'
 import { useWishlist } from '@/lib/wishlist'
 import { LocationChip } from '@/components/LocationChip'
+import BorderGlow from '@/components/BorderGlow'
 import {
   Search, ShoppingBag, LogOut, Bike, Store, Sparkles, User,
   ArrowRight, Clock, ShieldCheck, MapPin, Star, X, Heart, ShoppingBasket,
@@ -170,13 +171,13 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
   const eta = seeded(shop.id + 'e', 12, 35)
   const outOfDeliveryRange = shop.delivery_enabled && shop.delivery_radius_km != null && distance != null && distance > shop.delivery_radius_km
 
-  return (
+  const card = (
     <Link
       href={`/${shop.shop_slug}`}
       aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}`}
       className={cn(
-        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full',
-        featured ? 'border-gradient shadow-soft' : 'border border-border liquid-surface hover:border-primary/30',
+        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full h-full',
+        featured && 'border-gradient shadow-soft',
       )}
     >
       {/* Banner */}
@@ -255,6 +256,21 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
         </div>
       </div>
     </Link>
+  )
+
+  // Featured cards already have their own static border-gradient — stacking
+  // the mouse-tracking glow on top would be visual overkill on the one card
+  // type that's already meant to stand out. Regular cards get the glow as
+  // their hover treatment instead of the lift (BorderGlow sets its own
+  // `transform` inline for the 3D layering trick, which would silently
+  // fight a `hover:-translate-y-1` class at equal specificity — same
+  // conflict-class as the `position` gotcha noted on .liquid-glass).
+  if (featured) return card
+
+  return (
+    <BorderGlow className="liquid-surface rounded-2xl transition-shadow duration-300 hover:shadow-float">
+      {card}
+    </BorderGlow>
   )
 }
 
