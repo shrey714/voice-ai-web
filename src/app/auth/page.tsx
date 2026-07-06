@@ -143,7 +143,7 @@ function AuthForm() {
           </div>
 
           {/* Card */}
-          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
+          <div className="relative liquid-surface rounded-2xl border border-border shadow-sm p-5 space-y-4">
             {step === 'phone' ? (
               <>
                 <div>

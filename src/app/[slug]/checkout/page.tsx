@@ -334,7 +334,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
           {/* Left: form */}
           <div className="space-y-4">
             {/* Details */}
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+            <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-4">
               <div>
                 <h2 className="font-bold text-base text-foreground">Your Details</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">So the shop can prepare and reach you about your order</p>
@@ -391,7 +391,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
             {/* Delivery */}
             {shop.delivery_enabled && (
-              <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
+              <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn('size-10 rounded-xl flex items-center justify-center transition-all', wantsDelivery ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
@@ -461,7 +461,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
             )}
 
             {/* Payment */}
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+            <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <Wallet size={15} className="text-muted-foreground" />
                 <p className="font-bold text-sm text-foreground">Payment Method</p>
@@ -483,7 +483,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
             </div>
 
             {/* Note */}
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+            <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-3">
               <Label htmlFor="checkout-note" className="flex items-center gap-2">
                 <FileText size={15} className="text-muted-foreground" />
                 <span className="font-bold text-sm text-foreground">Special Instructions</span>
@@ -502,7 +502,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
 
           {/* Right: summary */}
           <div className="space-y-4">
-            <div className="bg-card rounded-2xl border border-border p-5 space-y-4 lg:sticky" style={{ top: headerHeight }}>
+            <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-4 lg:sticky" style={{ top: headerHeight }}>
               <h2 className="font-bold text-base text-foreground">Order Summary</h2>
 
               {/* Where this order is going */}

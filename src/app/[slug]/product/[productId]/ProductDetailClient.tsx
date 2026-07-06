@@ -47,7 +47,7 @@ function MiniProductCard({ product, slug }: { product: OnlineProduct; slug: stri
   return (
     <button
       onClick={() => vt.push(`/${slug}/product/${product.product_id}`)}
-      className="group text-left rounded-2xl border border-border bg-card overflow-hidden w-40 shrink-0 transition-all hover:shadow-float hover:-translate-y-0.5"
+      className="relative group text-left rounded-2xl border border-border liquid-surface overflow-hidden w-40 shrink-0 transition-all hover:shadow-float hover:-translate-y-0.5"
     >
       <div className="relative aspect-square bg-muted overflow-hidden">
         {product.image_url && !imgErr ? (
@@ -230,7 +230,7 @@ export function ProductDetailClient({
           </div>
 
           {/* Price card */}
-          <div className="bg-card border border-border p-4 rounded-2xl space-y-3">
+          <div className="relative liquid-surface border border-border p-4 rounded-2xl space-y-3">
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">{formatPrice(price)}</span>
               {originalPrice && <span className="text-lg text-muted-foreground line-through">{formatPrice(originalPrice)}</span>}
@@ -291,7 +291,7 @@ export function ProductDetailClient({
               { Icon: Truck, label: 'Fast delivery' },
               { Icon: RotateCcw, label: 'Easy returns' },
             ].map(({ Icon, label }) => (
-              <div key={label} className="flex flex-col items-center gap-1.5 text-center rounded-2xl border border-border bg-card p-3">
+              <div key={label} className="relative flex flex-col items-center gap-1.5 text-center rounded-2xl border border-border liquid-surface p-3">
                 <Icon size={18} className="text-primary" />
                 <span className="text-[11px] font-medium text-muted-foreground leading-tight">{label}</span>
               </div>
@@ -299,7 +299,7 @@ export function ProductDetailClient({
           </div>
 
           {/* Seller */}
-          <div className="bg-card border border-border p-4 rounded-2xl flex items-center gap-3">
+          <div className="relative liquid-surface border border-border p-4 rounded-2xl flex items-center gap-3">
             <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-sm font-black shrink-0">
               {shop.shop_name.charAt(0)}
             </div>
@@ -313,7 +313,7 @@ export function ProductDetailClient({
           </div>
 
           {/* Highlights */}
-          <div className="bg-card border border-border p-4 rounded-2xl">
+          <div className="relative liquid-surface border border-border p-4 rounded-2xl">
             <h3 className="font-bold text-foreground mb-3">Product highlights</h3>
             <ul className="space-y-2">
               {HIGHLIGHTS.map(h => (
@@ -325,7 +325,7 @@ export function ProductDetailClient({
           </div>
 
           {/* About */}
-          <div className="bg-card border border-border p-4 rounded-2xl">
+          <div className="relative liquid-surface border border-border p-4 rounded-2xl">
             <h3 className="font-bold text-foreground mb-2">About this product</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
               High-quality {product.name.toLowerCase()} sourced from trusted suppliers. Perfect for your everyday needs, available at {shop.shop_name}.
@@ -338,12 +338,12 @@ export function ProductDetailClient({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-border">
         <SectionHeader title="Customer Reviews" icon={Star} subtitle={`${reviewCount} verified ratings`} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-card border border-border p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-2">
+          <div className="relative liquid-surface border border-border p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-2">
             <p className="text-5xl font-black text-foreground">{rating}</p>
             <RatingStars rating={rating} size="md" />
             <p className="text-sm text-muted-foreground">{reviewCount} reviews</p>
           </div>
-          <div className="md:col-span-2 bg-card border border-border p-6 rounded-2xl space-y-3">
+          <div className="md:col-span-2 relative liquid-surface border border-border p-6 rounded-2xl space-y-3">
             {[5, 4, 3, 2, 1].map(star => {
               const pct = seeded(product.product_id + 's' + star, star >= 4 ? 40 : 3, star >= 4 ? 85 : 20)
               return (
@@ -361,7 +361,7 @@ export function ProductDetailClient({
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           {SAMPLE_REVIEWS.map((r, i) => (
-            <div key={i} className="bg-card border border-border p-4 rounded-2xl space-y-2">
+            <div key={i} className="relative liquid-surface border border-border p-4 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <RatingStars rating={seeded(product.product_id + 'rv' + i, 4, 5, 0)} size="sm" />
                 <Badge variant="success" className="text-[10px]"><Check /> Verified</Badge>

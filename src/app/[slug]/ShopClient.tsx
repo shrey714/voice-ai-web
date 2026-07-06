@@ -581,7 +581,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         {/* Sidebar (desktop) */}
         <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky space-y-4" style={{ top: headerHeight }}>
           {categories.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
+            <div className="relative liquid-surface rounded-2xl border border-border overflow-hidden">
               <div className="px-3.5 py-2.5 border-b border-border">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Categories</p>
               </div>
@@ -616,7 +616,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             </div>
           )}
 
-          <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="relative liquid-surface rounded-2xl border border-border p-4">
             <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
           </div>
         </aside>

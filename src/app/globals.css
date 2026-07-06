@@ -555,7 +555,7 @@ html { scroll-behavior: smooth; }
   --liquid-ring: inset 0 0 0 0 transparent;
 }
 
-.liquid-glass::before, .liquid-glass-strong::before {
+.liquid-glass::before, .liquid-glass-strong::before, .liquid-surface::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -584,22 +584,31 @@ html { scroll-behavior: smooth; }
   transform: scale(0.97);
 }
 
-/* Lighter sibling for content cards (product/shop cards): no backdrop-filter
-   at all, deliberately. Cards sit in a static grid on the page's own solid
-   background — there's nothing scrolling behind them to blur, so backdrop
-   blur there would be pure cost (every simultaneous card repaints on
-   scroll) for zero visual benefit. This gets the "molded from one material"
-   read from the specular highlight alone: a bright top edge, a soft bottom
-   inset shadow, no transparency to fight for text contrast against. */
+/* Lighter sibling for content cards (product/shop cards, address/order
+   cards, home stat boxes, etc). Originally a fully opaque `background:
+   var(--card)` with just the specular highlight — reasoned as "nothing
+   scrolling behind a static card to blur". That stopped being true once
+   DecorativeBlobs became a persistent global backdrop behind every page:
+   there's now always something underneath worth revealing. A lighter
+   blur than `.liquid-glass-strong` (10px/140% vs. 24px/180%) keeps the
+   per-card compositing cost down given these render many-at-once in a
+   grid, unlike the handful of `.liquid-glass` chrome elements per page. */
 .liquid-surface {
-  background: var(--card);
+  isolation: isolate;
+  --liquid-ring: inset 0 0 0 0 transparent;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 55%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 4%, transparent);
 }
 .dark .liquid-surface {
+  background: color-mix(in srgb, var(--card) 78%, transparent);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent);
 }
 
@@ -609,14 +618,14 @@ html { scroll-behavior: smooth; }
    to a solid, high-contrast surface rather than degrading gracefully by
    accident. Same intent as the prefers-reduced-motion block above. */
 @media (prefers-reduced-transparency: reduce) {
-  .liquid-glass, .liquid-glass-strong {
+  .liquid-glass, .liquid-glass-strong, .liquid-surface {
     background: var(--card);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent),
                 0 4px 12px color-mix(in oklch, var(--foreground) 5%, transparent);
   }
-  .liquid-glass::before, .liquid-glass-strong::before {
+  .liquid-glass::before, .liquid-glass-strong::before, .liquid-surface::before {
     display: none;
   }
 }

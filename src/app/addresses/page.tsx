@@ -148,7 +148,7 @@ function AddressesInner() {
               const Icon = labelIcon(a.label)
               const busy = busyId === a.id
               return (
-                <div key={a.id} className="rounded-2xl border border-border liquid-surface p-4 transition-colors hover:border-primary/25">
+                <div key={a.id} className="relative rounded-2xl border border-border liquid-surface p-4 transition-colors hover:border-primary/25">
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
                       <Icon size={18} />

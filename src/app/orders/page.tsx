@@ -190,7 +190,7 @@ function OrdersPageInner() {
                   disabled={!hasShop}
                   aria-label={hasShop ? `View order from ${order.shop_name ?? 'shop'}` : undefined}
                   className={cn(
-                    'w-full text-left liquid-surface rounded-2xl border overflow-hidden transition-all duration-200',
+                    'relative w-full text-left liquid-surface rounded-2xl border overflow-hidden transition-all duration-200',
                     hasShop ? 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer' : 'cursor-default',
                     isActive ? 'border-primary/25 ring-1 ring-primary/10' : 'border-border hover:border-primary/20',
                   )}

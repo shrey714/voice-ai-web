@@ -174,7 +174,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
 
         {/* Progress tracker */}
         {!isFailed && (
-          <div className="bg-card rounded-2xl border border-border p-5 space-y-4 animate-fade-in">
+          <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-4 animate-fade-in">
             <Progress value={meta.progress} className="h-1.5" />
             <div className="relative flex items-start justify-between">
               <div className="absolute top-[14px] left-[14px] right-[14px] h-px bg-border -z-0" />
@@ -204,7 +204,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Delivery / pickup details */}
-          <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+          <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-3">
             <h3 className="font-bold text-sm text-foreground">{isPickup ? 'Pickup Details' : 'Delivery Details'}</h3>
             <div className="space-y-2.5">
               <div className="flex items-start gap-2.5">
@@ -239,7 +239,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
           </div>
 
           {/* Items */}
-          <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
+          <div className="relative liquid-surface rounded-2xl border border-border p-5 space-y-3">
             <h3 className="font-bold text-sm text-foreground">Items Ordered</h3>
             <div className="space-y-2">
               {order.items.map((item, i) => (
