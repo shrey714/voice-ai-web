@@ -95,7 +95,13 @@ export function ProductSearch({ value, onChange, products, slug, placeholder, cl
       )}
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border bg-popover shadow-lg overflow-hidden z-50 animate-scale-in origin-top">
+        <div
+          // Same anchored-floating-menu glass technique as DropdownMenu/Select
+          // (translucent bg + a -z-1 ::before carrying the actual backdrop-blur)
+          // — this popup is a custom implementation, not built on those shared
+          // primitives, so it needs the treatment spelled out explicitly here.
+          className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50 animate-scale-in origin-top text-popover-foreground shadow-2xl ring-1 ring-foreground/5 dark:ring-foreground/10 bg-popover/70 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150"
+        >
           {/* Live suggestions */}
           {q && suggestions.length > 0 && (
             <div className="p-1.5" id="product-search-list" role="listbox">
