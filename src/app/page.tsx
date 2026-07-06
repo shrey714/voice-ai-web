@@ -374,7 +374,7 @@ function HomePageInner() {
                   className="pl-10 h-10 rounded-xl"
                 />
                 {search && (
-                  <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:backdrop-blur-md transition-colors">
                     <X size={14} />
                   </button>
                 )}
@@ -444,7 +444,7 @@ function HomePageInner() {
                 className="pl-10 h-10 rounded-xl"
               />
               {search && (
-                <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:backdrop-blur-md transition-colors">
                   <X size={14} />
                 </button>
               )}

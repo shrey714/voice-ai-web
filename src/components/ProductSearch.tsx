@@ -89,7 +89,7 @@ export function ProductSearch({ value, onChange, products, slug, placeholder, cl
         className="pl-10 h-9 text-sm rounded-xl"
       />
       {value && (
-        <button onClick={() => { onChange(''); setOpen(true) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10">
+        <button onClick={() => { onChange(''); setOpen(true) }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:backdrop-blur-md transition-colors z-10">
           <X size={14} />
         </button>
       )}
@@ -155,7 +155,7 @@ export function ProductSearch({ value, onChange, products, slug, placeholder, cl
                         <button onClick={() => commit(term)} className="flex-1 flex items-center gap-2.5 px-2 py-1.5 text-left text-sm text-foreground">
                           <ArrowUpLeft size={13} className="text-muted-foreground" /> {term}
                         </button>
-                        <button onClick={() => removeRecent(term)} className="px-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => removeRecent(term)} className="px-2 py-1 mr-1 rounded-full text-muted-foreground opacity-0 hover:bg-muted/60 hover:backdrop-blur-md group-hover:opacity-100 transition-opacity">
                           <X size={12} />
                         </button>
                       </div>

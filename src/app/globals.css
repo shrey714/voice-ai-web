@@ -584,6 +584,41 @@ html { scroll-behavior: smooth; }
   transform: scale(0.97);
 }
 
+/* Solid-fill button backgrounds (default/secondary variants) as a translucent
+   blurred tile instead — parameterized by --liquid-tint so one class covers
+   every color a filled button needs. Pair with .liquid-glass-interactive for
+   the hover/press feedback. Buttons other than default/secondary (outline,
+   ghost, destructive) already use a translucent Tailwind utility background
+   (bg-input/30, bg-destructive/10, hover:bg-muted/*) — those just need a
+   backdrop-blur utility added directly in button.tsx, not this class; a
+   custom unlayered rule here would only be needed if their background were
+   opaque to begin with. */
+.liquid-btn {
+  isolation: isolate;
+  background: color-mix(in srgb, var(--liquid-tint, var(--card)) 88%, transparent);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 35%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 10%, transparent);
+}
+.dark .liquid-btn {
+  background: color-mix(in srgb, var(--liquid-tint, var(--card)) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 12%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 30%, transparent);
+}
+.liquid-btn:hover {
+  filter: brightness(1.08);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-btn {
+    background: var(--liquid-tint, var(--card));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* Lighter sibling for content cards (product/shop cards, address/order
    cards, home stat boxes, etc). Originally a fully opaque `background:
    var(--card)` with just the specular highlight — reasoned as "nothing
