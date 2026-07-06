@@ -302,7 +302,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <header ref={headerRef} className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

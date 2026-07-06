@@ -467,7 +467,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
     (filters.sortBy !== 'relevance' ? 1 : 0)
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* ── Top Nav ── */}
       <header
         ref={headerRef}

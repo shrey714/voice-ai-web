@@ -152,7 +152,7 @@ export function ProductDetailClient({
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
+    <div className="min-h-screen pb-24 md:pb-0">
       {/* Header */}
       <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">

@@ -109,7 +109,7 @@ function OrdersPageInner() {
   const activeCount = orders.filter(o => activeStatuses.includes(o.status)).length
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">

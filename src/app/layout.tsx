@@ -7,6 +7,7 @@ import { SITE_URL, SITE_NAME } from '@/lib/site'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Footer } from '@/components/Footer'
 import { BottomNav } from '@/components/BottomNav'
+import { DecorativeBlobs } from '@/components/DecorativeBlobs'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -56,10 +57,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className={cn('min-h-screen bg-background font-sans antialiased flex flex-col')}>
+      {/* No bg-background here — DecorativeBlobs (below) provides the solid
+          base fill itself, so there's no ambiguity between body's own
+          background and a fixed, negative-z-index child fighting over which
+          one is "the" page background. */}
+      <body className={cn('min-h-screen font-sans antialiased flex flex-col')}>
         <NuqsAdapter>
           <ThemeProvider>
             <TooltipProvider delayDuration={200}>
+              <DecorativeBlobs />
               <a
                 href="#content"
                 className="sr-only focus:not-sr-only focus:fixed focus:z-100 focus:top-3 focus:left-3 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-premium"

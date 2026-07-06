@@ -108,7 +108,7 @@ function AddressesInner() {
   if (loading) return <BrandLoader label="Loading addresses…" />
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">

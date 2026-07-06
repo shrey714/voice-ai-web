@@ -35,7 +35,7 @@ export function RecentlyViewed({ excludeId, title = 'Recently viewed' }: { exclu
 function RecentCard({ item, onClick }: { item: ReturnType<typeof useRecentlyViewed>['items'][number]; onClick: () => void }) {
   const [imgErr, setImgErr] = useState(false)
   return (
-    <button onClick={onClick} className="group text-left rounded-2xl border border-border bg-card overflow-hidden w-36 shrink-0 transition-all hover:shadow-float hover:-translate-y-0.5 press">
+    <button onClick={onClick} className="group text-left rounded-2xl border border-border liquid-surface overflow-hidden w-36 shrink-0 transition-all hover:shadow-float hover:-translate-y-0.5 press">
       <div className="relative aspect-square bg-muted overflow-hidden">
         {item.image_url && !imgErr
           ? <Image src={item.image_url} alt="" fill sizes="144px" onError={() => setImgErr(true)} className="object-cover transition-transform duration-500 group-hover:scale-110" />

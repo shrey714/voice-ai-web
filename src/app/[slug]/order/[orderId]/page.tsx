@@ -99,7 +99,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
   if (loading) return <BrandLoader label="Loading your order…" />
 
   if (!order) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
         <AlertCircle size={32} className="text-muted-foreground mx-auto" />
         <p className="font-bold text-foreground">{loadError ? "Couldn't load this order" : 'Order not found'}</p>
@@ -134,7 +134,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
   const currentStepIdx = steps.findIndex(s => s.key === order.status)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {celebrate && !isFailed && <Confetti />}
       {/* Header */}
       <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">

@@ -7,8 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton'
  */
 export default function LoadingProduct() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 glass border-b border-border">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
           <Skeleton className="size-8 rounded-lg" />
           <Skeleton className="h-4 w-40" />

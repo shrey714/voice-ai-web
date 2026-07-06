@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SectionHeader } from '@/components/SectionHeader'
 import { EmptyState } from '@/components/EmptyState'
-import { DecorativeBlobs } from '@/components/DecorativeBlobs'
 import { RecentlyViewed } from '@/components/RecentlyViewed'
 import { Reveal } from '@/components/Reveal'
 import { useHeaderScroll } from '@/lib/useScroll'
@@ -139,7 +138,7 @@ function TrustStrip() {
   return (
     <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
       {TRUST.map(({ Icon, label }) => (
-        <div key={label} className="flex flex-col items-center text-center gap-2 rounded-2xl border border-border bg-card px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
+        <div key={label} className="flex flex-col items-center text-center gap-2 rounded-2xl border border-border liquid-surface px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
             <Icon size={16} />
           </span>
@@ -326,7 +325,6 @@ function HomePageInner() {
 
   return (
     <div className="relative min-h-screen">
-      <DecorativeBlobs className="h-[560px] bottom-auto" />
       {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-40 border-b transition-all duration-300',
@@ -459,7 +457,7 @@ function HomePageInner() {
               { label: 'Open Now', value: shops.filter(s => isShopOpen(s)).length },
               { label: 'With Delivery', value: shops.filter(s => s.delivery_enabled).length },
             ].map(stat => (
-              <div key={stat.label} className="rounded-2xl border border-border bg-card p-4 text-center">
+              <div key={stat.label} className="rounded-2xl border border-border liquid-surface p-4 text-center">
                 <p className="text-2xl sm:text-3xl font-black text-primary tracking-tight">{stat.value}</p>
                 <p className="text-xs text-muted-foreground font-medium mt-0.5">{stat.label}</p>
               </div>
