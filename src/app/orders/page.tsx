@@ -111,7 +111,7 @@ function OrdersPageInner() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
+      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1" aria-label="Back to shops">

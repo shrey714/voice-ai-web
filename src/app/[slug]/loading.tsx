@@ -20,7 +20,7 @@ function ProductCardSkeleton() {
 export default function LoadingShop() {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
+      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Skeleton className="size-8 rounded-lg" />

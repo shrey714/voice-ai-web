@@ -78,7 +78,7 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
         </ScrollArea>
 
         {cart.items.length > 0 && (
-          <div className="relative p-4 border-t border-border space-y-3 liquid-glass-strong">
+          <div className="relative p-4 border-t border-border space-y-3 liquid-glass-strong liquid-edge">
             <div className="space-y-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>

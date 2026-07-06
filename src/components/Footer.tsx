@@ -17,7 +17,7 @@ export function Footer() {
   useEffect(() => setMounted(true), [])
 
   return (
-    <footer className="border-t border-border liquid-glass mt-12">
+    <footer className="border-t border-border liquid-glass liquid-edge mt-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Left — brand + copy */}
         <div className="flex items-center gap-2.5 text-center sm:text-left">

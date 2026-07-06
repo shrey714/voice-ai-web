@@ -497,20 +497,22 @@ html { scroll-behavior: smooth; }
    yourself at the call site. */
 .liquid-glass {
   isolation: isolate;
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 20%, transparent);
   background: color-mix(in srgb, var(--card) 55%, transparent);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 45%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, white 20%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
     0 8px 32px color-mix(in oklch, var(--foreground) 10%, transparent);
 }
 .dark .liquid-glass {
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 12%, transparent);
   background: color-mix(in srgb, var(--card) 42%, transparent);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, white 12%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 30%, transparent),
     0 8px 32px rgba(0, 0, 0, 0.45);
 }
@@ -520,22 +522,37 @@ html { scroll-behavior: smooth; }
    No `position` here either — see the comment above .liquid-glass. */
 .liquid-glass-strong {
   isolation: isolate;
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 25%, transparent);
   background: color-mix(in srgb, var(--card) 82%, transparent);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 50%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, white 25%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 5%, transparent),
     0 12px 40px color-mix(in oklch, var(--foreground) 12%, transparent);
 }
 .dark .liquid-glass-strong {
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 14%, transparent);
   background: color-mix(in srgb, var(--card) 72%, transparent);
   box-shadow:
     inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, white 14%, transparent),
+    var(--liquid-ring),
     inset 0 -1px 0 0 color-mix(in oklch, black 35%, transparent),
     0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Edge-docked glass (headers spanning full viewport width, bottom nav,
+   sheets docked to one side) already carries its own single-side
+   `border-*` utility for the one real edge it has. `.liquid-glass`'s
+   all-around inset ring is meant for floating panels where every side is
+   a real edge (dialogs, dropdowns) — on an edge-docked element it draws a
+   faint line on the *other* three sides too, which read as unwanted
+   left/right/top borders on something that's supposed to be flush.
+   Pair this class alongside `.liquid-glass`/`.liquid-glass-strong` to
+   drop just that ring layer and let the explicit border-* do the framing. */
+.liquid-edge, .dark .liquid-edge {
+  --liquid-ring: inset 0 0 0 0 transparent;
 }
 
 .liquid-glass::before, .liquid-glass-strong::before {

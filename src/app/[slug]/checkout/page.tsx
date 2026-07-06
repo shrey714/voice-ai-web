@@ -304,7 +304,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header ref={headerRef} className="sticky top-0 z-40 liquid-glass-strong border-b border-border">
+      <header ref={headerRef} className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Go back">

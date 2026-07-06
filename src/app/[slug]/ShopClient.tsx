@@ -472,7 +472,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
       <header
         ref={headerRef}
         className={cn(
-          'sticky top-0 z-40 border-b transition-all duration-300',
+          'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
           scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-border',
         )}
       >
@@ -622,7 +622,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="flex-1 min-w-0 space-y-5">
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
-            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
+            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong liquid-edge border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
               <div className="flex gap-2 w-max">
                 <button
                   ref={el => { pillRefs.current['all'] = el }}

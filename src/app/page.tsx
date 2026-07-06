@@ -327,7 +327,7 @@ function HomePageInner() {
     <div className="relative min-h-screen">
       {/* ── Header ── */}
       <header className={cn(
-        'sticky top-0 z-40 border-b transition-all duration-300',
+        'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
         scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-transparent',
         hidden && '-translate-y-full',
       )}>
