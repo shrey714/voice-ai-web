@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/carousel'
 import {
   ArrowLeft, Heart, Share2, ShoppingCart, Check, Package,
-  Truck, AlertCircle, Store, ShieldCheck, RotateCcw, Plus, Minus, Star, Bike, Flame,
+  Truck, AlertCircle, Store, ShieldCheck, RotateCcw, Plus, Minus, Star, Bike, Flame, Layers,
 } from 'lucide-react'
 
 const HIGHLIGHTS = [
@@ -133,6 +133,24 @@ export function ProductDetailClient({
     .filter(p => p.product_id !== product.product_id)
     .sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category))
     .slice(0, 8)
+
+  // Same-category picks, presented as a bundle — display-only grouping of
+  // already-fetched products, not a real "frequently bought together"
+  // computation (that needs order-history data we don't have here).
+  const bundlePartners = similar.filter(p => p.category === product.category && p.quantity > 0).slice(0, 2)
+  const [bundleChecked, setBundleChecked] = useState<Record<string, boolean>>({})
+  const bundleTotal = price + bundlePartners
+    .filter(p => bundleChecked[p.product_id] !== false)
+    .reduce((sum, p) => sum + (p.online_price ?? p.store_price ?? 0), 0)
+  const handleAddBundle = () => {
+    cart.addItem({ productId: product.product_id, name: product.name, price, unit: product.unit }, 1)
+    bundlePartners
+      .filter(p => bundleChecked[p.product_id] !== false)
+      .forEach(p => cart.addItem({
+        productId: p.product_id, name: p.name, price: p.online_price ?? p.store_price ?? 0, unit: p.unit,
+      }, 1))
+    toast.success('Added to cart')
+  }
 
   const handleAddToCart = () => {
     cart.addItem(
@@ -297,6 +315,50 @@ export function ProductDetailClient({
               </div>
             ))}
           </div>
+
+          {/* Frequently bought together */}
+          {bundlePartners.length > 0 && (
+            <div className="relative liquid-surface border border-border p-4 rounded-2xl space-y-3.5">
+              <h3 className="font-bold text-foreground flex items-center gap-2">
+                <Layers size={16} className="text-primary" /> Frequently bought together
+              </h3>
+              <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1">
+                {[product, ...bundlePartners].map((p, i) => (
+                  <div key={p.product_id} className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    {i > 0 && <Plus size={14} className="text-muted-foreground shrink-0" />}
+                    <label className={cn('flex flex-col items-center gap-1.5 w-20 text-center', i > 0 && 'cursor-pointer')}>
+                      <div className="relative size-16 rounded-xl bg-muted overflow-hidden border border-border">
+                        {p.image_url ? (
+                          <Image src={p.image_url} alt={p.name} fill sizes="64px" className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><Package size={20} className="text-muted-foreground" /></div>
+                        )}
+                        {i > 0 && (
+                          <input
+                            type="checkbox"
+                            checked={bundleChecked[p.product_id] !== false}
+                            onChange={e => setBundleChecked(prev => ({ ...prev, [p.product_id]: e.target.checked }))}
+                            className="absolute top-1 right-1 size-4 accent-primary cursor-pointer"
+                            aria-label={`Include ${p.name} in bundle`}
+                          />
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-foreground line-clamp-2 leading-tight">{p.name}</p>
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-1 border-t border-border">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Bundle total</p>
+                  <p className="font-black text-lg text-foreground">{formatPrice(bundleTotal)}</p>
+                </div>
+                <Button size="sm" onClick={handleAddBundle} disabled={!open} className="gap-1.5">
+                  <ShoppingCart size={14} /> Add bundle to cart
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Seller */}
           <div className="relative liquid-surface border border-border p-4 rounded-2xl flex items-center gap-3">

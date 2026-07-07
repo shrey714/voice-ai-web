@@ -30,7 +30,7 @@ import { LocationChip } from '@/components/LocationChip'
 import BorderGlow from '@/components/BorderGlow'
 import {
   Search, ShoppingBag, LogOut, Bike, Store, Sparkles, User,
-  ArrowRight, Clock, ShieldCheck, MapPin, Star, X, Heart, ShoppingBasket,
+  ArrowRight, Clock, ShieldCheck, MapPin, Star, X, Heart, ShoppingBasket, Layers, TrendingUp,
 } from 'lucide-react'
 
 /* ─────────────────────────── Promo hero carousel ────────────────────────── */
@@ -144,6 +144,64 @@ function TrustStrip() {
             <Icon size={16} />
           </span>
           <span className="text-xs sm:text-sm font-semibold text-foreground leading-tight">{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ───────────────────────── Browse by category ───────────────────────────── */
+// Deep-links into the existing shop search (matches shop name/description) —
+// a lightweight "browse" entry point rather than a real product-category
+// filter, since shops (not products) are what this page lists.
+const BROWSE_CATEGORIES = [
+  { label: 'Grocery', Icon: ShoppingBasket, term: 'grocery' },
+  { label: 'Electronics', Icon: Store, term: 'electronics' },
+  { label: 'Fashion', Icon: Sparkles, term: 'fashion' },
+  { label: 'Food', Icon: Bike, term: 'food' },
+  { label: 'Pharmacy', Icon: ShieldCheck, term: 'pharmacy' },
+  { label: 'Stationery', Icon: MapPin, term: 'stationery' },
+]
+function CategoryStrip({ onPick }: { onPick: (term: string) => void }) {
+  return (
+    <div>
+      <SectionHeader title="Browse by category" icon={Layers} className="mb-3" />
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-6">
+        {BROWSE_CATEGORIES.map(({ label, Icon, term }) => (
+          <button
+            key={label}
+            onClick={() => onPick(term)}
+            className="flex flex-col items-center gap-2 shrink-0 w-20 sm:w-auto rounded-2xl liquid-surface liquid-glass-interactive px-2 py-3.5 press"
+          >
+            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Icon size={18} />
+            </span>
+            <span className="text-[11px] font-semibold text-foreground text-center leading-tight">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ──────────────────────────── Promo banner strip ────────────────────────── */
+const PROMO_STRIP = [
+  { Icon: Bike, title: 'Free delivery', subtitle: 'On orders above ₹499 at participating shops' },
+  { Icon: Sparkles, title: 'New shops weekly', subtitle: "More neighbourhood stores joining all the time" },
+  { Icon: Heart, title: 'Refer & save', subtitle: 'Share ShopNear with a friend' },
+]
+function PromoStrip() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {PROMO_STRIP.map(({ Icon, title, subtitle }) => (
+        <div key={title} className="relative flex items-center gap-3 rounded-2xl liquid-surface border border-border p-3.5">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0">
+            <Icon size={17} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground leading-tight">{title}</p>
+            <p className="text-xs text-muted-foreground leading-tight mt-0.5 truncate">{subtitle}</p>
+          </div>
         </div>
       ))}
     </div>
@@ -338,6 +396,11 @@ function HomePageInner() {
 
   const openShops = sorted.filter(s => isShopOpen(s))
   const closedShops = sorted.filter(s => !isShopOpen(s))
+  // Same seeded rating ShopCard itself displays — sorted here just to pick
+  // an order for this rail, not a new data source.
+  const trendingShops = [...openShops]
+    .sort((a, b) => seeded(b.id + 'r', 4.0, 4.9, 1) - seeded(a.id + 'r', 4.0, 4.9, 1))
+    .slice(0, 6)
 
   return (
     <div className="relative min-h-screen">
@@ -460,7 +523,9 @@ function HomePageInner() {
         {!search && (
           <>
             <HeroCarousel />
+            <PromoStrip />
             <TrustStrip />
+            <CategoryStrip onPick={term => setSearch(term)} />
             <RecentlyViewed title="Continue shopping" />
           </>
         )}
@@ -479,6 +544,21 @@ function HomePageInner() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Trending shops — top-rated among already-loaded shops (client-side
+            sort on the seeded rating used throughout, not a separate fetch). */}
+        {!search && !loading && openShops.length > 1 && (
+          <Reveal as="section">
+            <SectionHeader title="Trending near you" icon={TrendingUp} />
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+              {trendingShops.map(shop => (
+                <div key={shop.id} className="w-64 shrink-0">
+                  <ShopCard shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />
+                </div>
+              ))}
+            </div>
+          </Reveal>
         )}
 
         {/* Shops */}

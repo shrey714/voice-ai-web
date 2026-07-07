@@ -1,6 +1,7 @@
 'use client'
 import { memo, useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import {
@@ -32,7 +33,7 @@ import BorderGlow from '@/components/BorderGlow'
 import { useHeaderScroll } from '@/lib/useScroll'
 import {
   Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart,
-  Bike, Clock, ShoppingBag, Layers, ArrowRight, Sliders, Info, ShoppingBasket, Store,
+  Bike, Clock, ShoppingBag, Layers, ArrowRight, Sliders, Info, ShoppingBasket, Store, ChevronRight,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
 
@@ -630,6 +631,19 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
 
         {/* Product area */}
         <div className="flex-1 min-w-0 space-y-5">
+          {/* Breadcrumbs */}
+          <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground pt-4 lg:pt-0">
+            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+            <ChevronRight size={12} className="shrink-0" />
+            <span className="font-semibold text-foreground truncate">{shop.shop_name}</span>
+            {activeCategory !== 'all' && (
+              <>
+                <ChevronRight size={12} className="shrink-0" />
+                <span className="font-semibold text-foreground truncate">{activeCategory}</span>
+              </>
+            )}
+          </nav>
+
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
             // No top border/highlight of its own — it mirrors the header's own
