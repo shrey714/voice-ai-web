@@ -286,8 +286,8 @@ export function AddressDialog({
                     type="button"
                     onClick={() => set('label', value)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors',
-                      draft.label === value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted',
+                      'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold liquid-glass-interactive',
+                      draft.label === value ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground' : 'liquid-surface text-muted-foreground hover:text-foreground',
                     )}
                   >
                     <Icon size={14} /> {value}

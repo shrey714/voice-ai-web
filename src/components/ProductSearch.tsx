@@ -174,7 +174,7 @@ export function ProductSearch({ value, onChange, products, slug, placeholder, cl
                       <button
                         key={cat}
                         onClick={() => commit(cat)}
-                        className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                        className="rounded-full liquid-surface liquid-glass-interactive px-3 py-1.5 text-xs font-medium text-foreground hover:text-primary"
                       >
                         {cat}
                       </button>

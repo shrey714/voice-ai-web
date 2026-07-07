@@ -134,8 +134,8 @@ function OrdersPageInner() {
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all',
-                  filter === tab.key ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-border',
+                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold liquid-glass-interactive',
+                  filter === tab.key ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground' : 'liquid-surface text-muted-foreground hover:text-foreground',
                 )}
               >
                 {tab.label}

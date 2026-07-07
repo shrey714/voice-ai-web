@@ -12,7 +12,7 @@ import { useAllCarts } from '@/lib/cart'
 // bar there would stack two fixed bottom bars on screen. Allowlist the
 // handful of routes that don't already own the bottom of the screen,
 // rather than guessing at every shop-route shape.
-const SHOWN_ON = ['/', '/wishlist', '/orders', '/addresses']
+export const SHOWN_ON = ['/', '/wishlist', '/orders', '/addresses']
 
 export function BottomNav() {
   const pathname = usePathname()

@@ -381,7 +381,7 @@ function HomePageInner() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
               <Button
                 variant="ghost"
                 size="icon"

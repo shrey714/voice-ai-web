@@ -154,7 +154,7 @@ export function LocationPicker({
             <button
               onClick={handleDetect}
               disabled={detecting}
-              className="w-full flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-3.5 text-left transition-colors hover:bg-primary/10 disabled:opacity-70"
+              className="w-full flex items-center gap-3 rounded-2xl liquid-surface liquid-glass-interactive p-3.5 text-left disabled:opacity-70"
             >
               <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
                 {detecting ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} />}

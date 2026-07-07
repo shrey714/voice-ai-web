@@ -163,7 +163,7 @@ const ProductCard = memo(function ProductCard({
           <div className="hidden md:block absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
             <button
               onClick={e => { e.stopPropagation(); handleQuickAdd() }}
-              className="w-full bg-primary/95 text-primary-foreground text-xs font-bold py-2.5 flex items-center justify-center gap-1 backdrop-blur hover:brightness-110"
+              className="w-full liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-xs font-bold py-2.5 flex items-center justify-center gap-1"
             >
               <Plus size={13} /> Quick Add
             </button>
@@ -217,13 +217,7 @@ const ProductCard = memo(function ProductCard({
           ) : cartQty === 0 ? (
             <button
               onClick={handleQuickAdd}
-              className={cn(
-                'shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-xl',
-                'bg-primary/10 text-primary border border-primary/20',
-                'text-sm font-bold transition-all duration-150',
-                'hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-md',
-                'active:scale-95',
-              )}
+              className="shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-sm font-bold active:scale-95"
             >
               <Plus size={13} /> ADD
             </button>
@@ -475,8 +469,16 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
       <header
         ref={headerRef}
         className={cn(
-          'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
-          scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-border',
+          // Border/shadow are lg-only when the mobile category pill bar is
+          // present directly below — that bar carries its own bottom edge so
+          // the two read as one continuous glass panel instead of two stacked
+          // materials with a seam (and a header shadow bleeding through the
+          // bar's translucent blur) between them.
+          'sticky top-0 z-40 liquid-edge transition-all duration-300 lg:border-b lg:border-border',
+          scrolled ? 'liquid-glass-strong' : 'liquid-glass',
+          scrolled && 'lg:shadow-soft',
+          categories.length === 0 && 'max-lg:border-b max-lg:border-border',
+          categories.length === 0 && scrolled && 'max-lg:shadow-soft',
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -561,7 +563,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               placeholder={`Search in ${shop.shop_name}…`}
               className="flex-1"
             />
-            <Button variant="secondary" size="icon-sm" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 rounded-xl relative" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
+            <Button variant="ghost" size="icon-sm" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 text-muted-foreground relative" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
               <Sliders size={16} />
               {activeFilterCount > 0 && (
                 <span className="absolute -top-1 -right-1 size-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">{activeFilterCount}</span>
@@ -589,8 +591,8 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                 <button
                   onClick={() => scrollToCategory('all')}
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors',
-                    activeCategory === 'all' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium',
+                    'w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-sm liquid-glass-interactive rounded-xl',
+                    activeCategory === 'all' ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground font-medium',
                   )}
                 >
                   <Layers size={13} /> All items
@@ -603,8 +605,8 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                       key={cat}
                       onClick={() => scrollToCategory(cat)}
                       className={cn(
-                        'w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-sm transition-colors',
-                        activeCategory === cat ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium',
+                        'w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-sm liquid-glass-interactive rounded-xl',
+                        activeCategory === cat ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground font-medium',
                       )}
                     >
                       <span className="truncate">{cat}</span>
@@ -625,14 +627,24 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="flex-1 min-w-0 space-y-5">
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
-            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong liquid-edge border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
+            // No top border/highlight of its own — it mirrors the header's own
+            // scrolled/unscrolled glass state so the two read as one continuous
+            // panel, and only this bar (not the header) draws the shared bottom
+            // edge/shadow on mobile. See the header className comment above.
+            <div
+              className={cn(
+                'lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-edge overflow-x-auto no-scrollbar transition-all duration-300 border-b border-border',
+                scrolled ? 'liquid-glass-strong shadow-soft' : 'liquid-glass',
+              )}
+              style={{ top: headerHeight }}
+            >
               <div className="flex gap-2 w-max">
                 <button
                   ref={el => { pillRefs.current['all'] = el }}
                   onClick={() => scrollToCategory('all')}
                   className={cn(
-                    'flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border press',
-                    activeCategory === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-105' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary',
+                    'flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap liquid-glass-interactive press',
+                    activeCategory === 'all' ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground hover:text-primary',
                   )}
                 >
                   <Layers size={11} /> All
@@ -643,8 +655,8 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                     ref={el => { pillRefs.current[cat] = el }}
                     onClick={() => scrollToCategory(cat)}
                     className={cn(
-                      'px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border press',
-                      activeCategory === cat ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-105' : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-primary',
+                      'px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap liquid-glass-interactive press',
+                      activeCategory === cat ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground hover:text-primary',
                     )}
                   >
                     {cat}
@@ -672,7 +684,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                 <button
                   key={oc.slug}
                   onClick={() => router.push(`/${oc.slug}`)}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl liquid-surface liquid-glass-interactive text-left"
                 >
                   <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-primary">
                     <ShoppingBasket size={16} />
@@ -739,7 +751,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="fixed bottom-0 left-0 right-0 z-30 p-3 pb-5 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none">
           <button
             onClick={() => setCartOpen(true)}
-            className="pointer-events-auto mx-auto max-w-sm w-full flex items-center justify-between gap-3 bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-lg active:scale-[0.98] transition-all animate-slide-up"
+            className="pointer-events-auto mx-auto max-w-sm w-full flex items-center justify-between gap-3 liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground rounded-2xl px-4 py-3.5 shadow-lg active:scale-[0.98] animate-slide-up"
           >
             <div className="flex items-center gap-2.5">
               <div className="size-8 bg-primary-foreground/15 rounded-xl flex items-center justify-center relative">
