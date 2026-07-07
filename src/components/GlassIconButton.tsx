@@ -39,7 +39,7 @@ export function GlassIconButton({ icon, color, size = 36, className, style, chil
           the button edge on purpose. */}
       <span className="absolute inset-0 rounded-[1.25em] overflow-hidden [transform-style:preserve-3d]">
         <span
-          className="absolute inset-0 rounded-[1.25em] block transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] origin-[100%_100%] [will-change:transform] group-hover:[transform:rotate(25deg)_translate3d(-0.5em,-0.5em,0.5em)]"
+          className="absolute inset-0 rounded-[1.25em] block transition-transform duration-300 ease-[cubic-bezier(0.83,0,0.17,1)] origin-[100%_100%] [will-change:transform] "
           style={{
             background: color ?? 'linear-gradient(var(--primary), var(--chart-2))',
             boxShadow: '0.5em -0.5em 0.75em color-mix(in oklch, var(--foreground) 18%, transparent)',

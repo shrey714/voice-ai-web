@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { GrainientBackground } from '@/components/GrainientBackground'
 import {
   Phone, ArrowLeft, ShieldCheck, RotateCcw,
-  ChevronRight, Loader2, Store, Check, AlertCircle, Lock,
+  ChevronRight, Loader2, Store, Check, AlertCircle,
 } from 'lucide-react'
 
 function AuthForm() {
@@ -103,7 +103,7 @@ function AuthForm() {
     <div className="min-h-screen bg-background relative isolate flex flex-col">
       <GrainientBackground className="absolute inset-0 -z-10" />
       {/* Top nav */}
-      <div className="flex items-center gap-2 p-4 sm:p-6">
+      <div className="flex items-center gap-2 p-4 sm:p-6 pb-0!">
         {step === 'otp' && (
           <button
             onClick={() => { setStep('phone'); setOtp(['', '', '', '', '', '']); setError('') }}
@@ -121,14 +121,14 @@ function AuthForm() {
       </div>
 
       {/* Main */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="flex-1 flex items-center justify-center px-4 pb-8">
         <div className="w-full max-w-sm space-y-6">
           {/* Icon + heading */}
           <div className="text-center space-y-3">
-            <div className={cn('size-16 rounded-2xl mx-auto flex items-center justify-center transition-all duration-300', step === 'phone' ? 'bg-primary/10' : 'bg-primary')}>
+            <div className={cn('rounded-2xl mx-auto flex items-center justify-center transition-all duration-300')}>
               {step === 'phone'
-                ? <Phone size={26} className="text-primary" />
-                : <ShieldCheck size={26} className="text-primary-foreground" />}
+                ? <Phone size={26} className="text-chart-1" />
+                : <ShieldCheck size={26} className="text-chart-1" />}
             </div>
             <div>
               <h1 className="text-2xl font-black text-foreground tracking-tight">
@@ -144,7 +144,7 @@ function AuthForm() {
 
           {/* Card */}
           <div className="relative liquid-surface rounded-2xl border border-border shadow-sm p-5 space-y-4">
-            {step === 'phone' ? (
+            {step !== 'phone' ? (
               <>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-2">Mobile Number</label>
@@ -213,12 +213,12 @@ function AuthForm() {
                   </div>
                 )}
 
-                <Button className="w-full gap-2" size="lg" onClick={() => verifyOtp()} disabled={loading || otpString.length !== 6}>
+                <Button className="w-full gap-2 mb-0" size="lg" onClick={() => verifyOtp()} disabled={loading || otpString.length !== 6}>
                   {loading ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
                   {loading ? 'Verifying…' : 'Verify & Continue'}
                 </Button>
 
-                <div className="flex flex-col items-center gap-2 pt-1">
+                <div className="flex flex-col items-center gap-2 pt-2">
                   {countdown > 0 ? (
                     <p className="text-xs text-muted-foreground">Resend code in <span className="font-bold text-foreground">{countdown}s</span></p>
                   ) : (
@@ -232,7 +232,6 @@ function AuthForm() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground leading-relaxed px-4 flex items-center justify-center gap-1.5">
-            <Lock size={12} className="shrink-0" />
             <span>Your number is used only for order verification. We never share your data.</span>
           </p>
         </div>

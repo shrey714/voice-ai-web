@@ -29,7 +29,7 @@ export function Footer() {
 
   return (
     <footer className={cn(
-      'border-t border-border liquid-glass liquid-edge mt-8',
+      'border-t border-border liquid-glass liquid-edge',
       needsBottomBarSpace && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0',
     )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
