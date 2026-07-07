@@ -222,7 +222,7 @@ const ProductCard = memo(function ProductCard({
               <Plus size={13} /> ADD
             </button>
           ) : (
-            <div className="shrink-0 flex items-center bg-primary rounded-xl overflow-hidden shadow-sm animate-scale-in">
+            <div className="shrink-0 flex items-center liquid-btn [--liquid-tint:var(--primary)] rounded-xl overflow-hidden shadow-sm animate-scale-in">
               <button onClick={() => onUpdateQty(product.product_id, cartQty - 1)} aria-label="Decrease quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
                 <Minus size={13} />
               </button>
@@ -618,8 +618,13 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             </div>
           )}
 
-          <div className="relative liquid-surface rounded-2xl border border-border p-4">
-            <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
+          <div className="relative liquid-surface rounded-2xl border border-border overflow-hidden">
+            <div className="px-3.5 py-2.5 border-b border-border">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Filters</p>
+            </div>
+            <div className="p-4">
+              <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
+            </div>
           </div>
         </aside>
 
@@ -787,7 +792,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             <SheetTitle>Filters & Sort</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} onClose={() => setFilterOpen(false)} />
+            <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
           </div>
         </SheetContent>
       </Sheet>

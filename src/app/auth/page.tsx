@@ -144,7 +144,7 @@ function AuthForm() {
 
           {/* Card */}
           <div className="relative liquid-surface rounded-2xl border border-border shadow-sm p-5 space-y-4">
-            {step !== 'phone' ? (
+            {step === 'phone' ? (
               <>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-2">Mobile Number</label>

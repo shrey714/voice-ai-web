@@ -268,7 +268,7 @@ export function ProductDetailClient({
           {/* Quantity + add (desktop) */}
           {!outOfStock && (
             <div className="hidden md:flex items-center gap-4">
-              <div className="flex items-center border border-border rounded-xl overflow-hidden">
+              <div className="flex items-center liquid-surface rounded-xl overflow-hidden">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3.5 py-2.5 hover:bg-muted transition-colors text-foreground"><Minus size={15} /></button>
                 <span className="px-4 py-2.5 font-bold text-foreground min-w-[48px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
                 <button
@@ -395,7 +395,7 @@ export function ProductDetailClient({
       {/* Sticky mobile add-to-cart bar */}
       {!outOfStock && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 liquid-glass-strong liquid-edge border-t border-border p-3 flex items-center gap-3">
-          <div className="flex items-center border border-border rounded-xl overflow-hidden bg-card shrink-0">
+          <div className="flex items-center liquid-surface rounded-xl overflow-hidden shrink-0">
             <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
             <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
             <button

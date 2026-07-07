@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { X, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface FilterState {
@@ -18,14 +18,12 @@ interface ProductFiltersProps {
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
   maxPrice?: number
-  onClose?: () => void
 }
 
 export function ProductFilters({
   filters,
   onFiltersChange,
   maxPrice = 10000,
-  onClose,
 }: ProductFiltersProps) {
   const [expandedSections, setExpandedSections] = useState({
     price: true,
@@ -64,18 +62,10 @@ export function ProductFilters({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-foreground">Filters</h3>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="md:hidden p-1 hover:bg-muted/60 hover:backdrop-blur-md rounded-lg transition-colors"
-          >
-            <X size={18} className="text-muted-foreground" />
-          </button>
-        )}
-      </div>
+      {/* Header — no title/close here: the desktop sidebar already labels this
+          panel from outside, and the mobile sheet already renders both a
+          title and a close button via SheetHeader/SheetContent (this used to
+          render a second, redundant "Filters" heading + X on top of that). */}
 
       {/* Reset button */}
       {hasActiveFilters && (

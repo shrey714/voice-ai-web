@@ -53,7 +53,7 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
                     <p className="font-semibold text-sm leading-tight truncate text-foreground">{item.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{formatPrice(item.price)} · {item.unit}</p>
                   </div>
-                  <div className="flex items-center bg-card border border-border rounded-lg overflow-hidden shrink-0">
+                  <div className="flex items-center liquid-surface rounded-lg overflow-hidden shrink-0">
                     <button
                       onClick={() => cart.updateQty(item.productId, item.quantity - 1)}
                       aria-label={item.quantity === 1 ? `Remove ${item.name} from cart` : 'Decrease quantity'}
