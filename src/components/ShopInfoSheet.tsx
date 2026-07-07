@@ -7,6 +7,7 @@ import { useLocation } from '@/lib/location'
 import { cn, distanceKm, formatDistance } from '@/lib/utils'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Bike, Clock, MapPin, Navigation, Share2, FileText, Ban, Loader2, LocateFixed,
 } from 'lucide-react'
@@ -180,12 +181,9 @@ export function ShopInfoSheet({ shop, open, onClose }: ShopInfoSheetProps) {
           </div>
 
           {/* Share */}
-          <button
-            onClick={handleShare}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors active:scale-[0.99]"
-          >
+          <Button variant="outline" onClick={handleShare} className="w-full rounded-2xl py-3 h-auto gap-2 font-bold">
             <Share2 size={15} /> Share this shop
-          </button>
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

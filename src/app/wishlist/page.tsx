@@ -7,6 +7,8 @@ import { useWishlist } from '@/lib/wishlist'
 import { cn, formatPrice } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassIconButton } from '@/components/GlassIconButton'
+import BorderGlow from '@/components/BorderGlow'
 import { ArrowLeft, Heart, Package, Store } from 'lucide-react'
 
 function WishCard({
@@ -18,7 +20,11 @@ function WishCard({
 }) {
   const [imgErr, setImgErr] = useState(false)
   return (
-    <div className="group relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1">
+    // No hover:-translate-y-1 here — BorderGlow sets its own inline `transform`
+    // for its 3D layering trick, which would silently beat a translate-y
+    // class at equal specificity (same conflict already documented on
+    // ShopCard/ProductCard). The edge glow is the hover cue instead.
+    <BorderGlow className="group liquid-surface transition-shadow duration-300 hover:shadow-lg flex flex-col">
       <button onClick={onOpen} className="block w-full text-left">
         <div className="relative aspect-square bg-muted overflow-hidden">
           {item.image_url && !imgErr
@@ -40,14 +46,15 @@ function WishCard({
           <p className="font-black text-[15px] text-foreground">{formatPrice(item.price)}</p>
         </div>
       </button>
-      <button
+      <GlassIconButton
         onClick={onRemove}
         aria-label="Remove from wishlist"
-        className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-background/85 backdrop-blur text-destructive shadow-sm transition-all hover:scale-110 active:scale-95 press"
-      >
-        <Heart size={15} className="fill-destructive" />
-      </button>
-    </div>
+        className="absolute top-2 right-2 active:scale-95"
+        size={32}
+        color="linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))"
+        icon={<Heart size={14} className="fill-white" />}
+      />
+    </BorderGlow>
   )
 }
 
@@ -56,8 +63,8 @@ export default function WishlistPage() {
   const { items, remove, toggle, count } = useWishlist()
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 glass border-b border-border">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
           <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Go back">
             <ArrowLeft size={18} />

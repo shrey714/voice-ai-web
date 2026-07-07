@@ -27,6 +27,8 @@ import { RecentlyViewed } from '@/components/RecentlyViewed'
 import { LocationChip } from '@/components/LocationChip'
 import { ShopInfoSheet } from '@/components/ShopInfoSheet'
 import { CartSheet } from '@/components/CartSheet'
+import { GlassIconButton } from '@/components/GlassIconButton'
+import BorderGlow from '@/components/BorderGlow'
 import { useHeaderScroll } from '@/lib/useScroll'
 import {
   Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart,
@@ -103,9 +105,9 @@ const ProductCard = memo(function ProductCard({
   const goDetails = () => vt.push(`/${slug}/product/${product.product_id}`, imgRef.current)
 
   return (
-    <div
+    <BorderGlow
       onPointerEnter={() => vt.prefetch(`/${slug}/product/${product.product_id}`)}
-      className="group bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/25 flex flex-col"
+      className="group liquid-surface transition-shadow duration-300 hover:shadow-lg flex flex-col"
     >
       {/* Image */}
       <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden shrink-0 cursor-pointer" onClick={goDetails}>
@@ -132,14 +134,15 @@ const ProductCard = memo(function ProductCard({
         )}
 
         {/* Wishlist */}
-        <button
+        <GlassIconButton
           onClick={e => { e.stopPropagation(); handleWishlist() }}
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute top-2 right-2 flex size-9 items-center justify-center rounded-full bg-background/85 backdrop-blur text-foreground shadow-sm transition-all hover:scale-110 active:scale-95"
+          className="absolute top-2 right-2 active:scale-95"
+          color={wishlisted ? 'linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))' : undefined}
+          icon={<Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted && 'fill-white scale-110')} />}
         >
-          {burst && <span className="absolute inset-0 rounded-full border-2 border-destructive animate-heart-ring" />}
-          <Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted ? 'fill-destructive text-destructive scale-110' : 'text-muted-foreground')} />
-        </button>
+          {burst && <span className="absolute inset-0 rounded-[1.25em] border-2 border-destructive animate-heart-ring" />}
+        </GlassIconButton>
 
         {/* Free delivery ribbon */}
         {freeDelivery && !outOfStock && (
@@ -242,7 +245,7 @@ const ProductCard = memo(function ProductCard({
           )}
         </div>
       </div>
-    </div>
+    </BorderGlow>
   )
 })
 
@@ -467,13 +470,13 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
     (filters.sortBy !== 'relevance' ? 1 : 0)
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* ── Top Nav ── */}
       <header
         ref={headerRef}
         className={cn(
-          'sticky top-0 z-40 border-b transition-all duration-300',
-          scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-border',
+          'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
+          scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-border',
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -578,7 +581,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         {/* Sidebar (desktop) */}
         <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky space-y-4" style={{ top: headerHeight }}>
           {categories.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
+            <div className="relative liquid-surface rounded-2xl border border-border overflow-hidden">
               <div className="px-3.5 py-2.5 border-b border-border">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Categories</p>
               </div>
@@ -613,7 +616,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             </div>
           )}
 
-          <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="relative liquid-surface rounded-2xl border border-border p-4">
             <ProductFilters filters={filters} onFiltersChange={handleFiltersChange} maxPrice={maxPrice} />
           </div>
         </aside>
@@ -622,7 +625,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         <div className="flex-1 min-w-0 space-y-5">
           {/* Category pills — mobile/tablet (sticky below header) */}
           {categories.length > 0 && (
-            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 glass-strong border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
+            <div className="lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong liquid-edge border-b border-border overflow-x-auto no-scrollbar" style={{ top: headerHeight }}>
               <div className="flex gap-2 w-max">
                 <button
                   ref={el => { pillRefs.current['all'] = el }}

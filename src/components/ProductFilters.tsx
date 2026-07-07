@@ -70,7 +70,7 @@ export function ProductFilters({
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden p-1 hover:bg-muted rounded-lg transition-colors"
+            className="md:hidden p-1 hover:bg-muted/60 hover:backdrop-blur-md rounded-lg transition-colors"
           >
             <X size={18} className="text-muted-foreground" />
           </button>

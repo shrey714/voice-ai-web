@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/EmptyState'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="min-h-screen flex items-center justify-center px-6">
       <EmptyState
         icon={CompassIcon}
         title="Page not found"

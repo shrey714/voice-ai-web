@@ -465,3 +465,202 @@ html { scroll-behavior: smooth; }
    filtering/sorting a product grid), so it was removed. Add a scoped
    transition to a specific element only where a deliberate color fade is
    wanted — never via wildcard attribute selectors. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID GLASS — a navigation/chrome material, deliberately not a content
+   one. Apple's own Liquid Glass is reserved for nav bars, tab bars, sheets
+   and floating controls — never list cells or cards, both because dense
+   text needs a stable, opaque background to stay legible, and because
+   backdrop-filter is too expensive to run on dozens of simultaneous
+   elements (a product grid) without hurting scroll performance.
+   Real third-party "liquid glass" packages (checked npm before writing
+   this) all lean on `backdrop-filter: url(#svg-filter)` for true optical
+   refraction, which only runs in Chromium — Safari and Firefox silently
+   drop the filter. That's not acceptable for an app whose customers are
+   overwhelmingly on mobile Safari, so this is built from parts that
+   render everywhere: backdrop blur + saturation (the actual "glass" read),
+   a layered inset highlight standing in for a specular edge-light, a noise
+   overlay so the blur doesn't band into visible gradient steps, and
+   adaptive tinting via the existing --card/--foreground tokens so it
+   still looks right in dark mode without a second hand-tuned palette.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* No `position` here on purpose — every current use site is already sticky/
+   fixed (header, bottom nav, floating bars), and forcing `position: relative`
+   in this class fought Tailwind's `sticky`/`fixed` utilities applied
+   alongside it on the same element (same specificity, but this stylesheet
+   isn't inside Tailwind's cascade layer, so it silently won and downgraded
+   the element to `relative` — the header just scrolled away instead of
+   sticking). Matches how .bg-noise below already handles this: the ::before
+   needs *a* positioned ancestor, and the call site already provides one. If
+   you use this class on a `position: static` element, add `relative`
+   yourself at the call site. */
+.liquid-glass {
+  isolation: isolate;
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 20%, transparent);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 45%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
+    0 8px 32px color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+.dark .liquid-glass {
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 12%, transparent);
+  background: color-mix(in srgb, var(--card) 42%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 30%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Opaque enough to guarantee text contrast on its own (headers, sheet
+   chrome) — same highlight treatment, richer/less see-through fill.
+   No `position` here either — see the comment above .liquid-glass. */
+.liquid-glass-strong {
+  isolation: isolate;
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 25%, transparent);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 50%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 5%, transparent),
+    0 12px 40px color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+.dark .liquid-glass-strong {
+  --liquid-ring: inset 0 0 0 1px color-mix(in oklch, white 14%, transparent);
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 35%, transparent),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Edge-docked glass (headers spanning full viewport width, bottom nav,
+   sheets docked to one side) already carries its own single-side
+   `border-*` utility for the one real edge it has. `.liquid-glass`'s
+   all-around inset ring is meant for floating panels where every side is
+   a real edge (dialogs, dropdowns) — on an edge-docked element it draws a
+   faint line on the *other* three sides too, which read as unwanted
+   left/right/top borders on something that's supposed to be flush.
+   Pair this class alongside `.liquid-glass`/`.liquid-glass-strong` to
+   drop just that ring layer and let the explicit border-* do the framing. */
+.liquid-edge, .dark .liquid-edge {
+  --liquid-ring: inset 0 0 0 0 transparent;
+}
+
+.liquid-glass::before, .liquid-glass-strong::before, .liquid-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Press/hover morph for tappable glass (floating buttons, pills). A real
+   lens would refract more as light grazes the edge on hover — approximated
+   here with a brightening sweep + a slight scale-down on press so it still
+   reads as "material responding to touch" without an SVG displacement map. */
+.liquid-glass-interactive {
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out);
+}
+.liquid-glass-interactive:hover {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 60%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, white 30%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
+    0 10px 36px color-mix(in oklch, var(--foreground) 14%, transparent);
+}
+.liquid-glass-interactive:active {
+  transform: scale(0.97);
+}
+
+/* Solid-fill button backgrounds (default/secondary variants) as a translucent
+   blurred tile instead — parameterized by --liquid-tint so one class covers
+   every color a filled button needs. Pair with .liquid-glass-interactive for
+   the hover/press feedback. Buttons other than default/secondary (outline,
+   ghost, destructive) already use a translucent Tailwind utility background
+   (bg-input/30, bg-destructive/10, hover:bg-muted/*) — those just need a
+   backdrop-blur utility added directly in button.tsx, not this class; a
+   custom unlayered rule here would only be needed if their background were
+   opaque to begin with. */
+.liquid-btn {
+  isolation: isolate;
+  background: color-mix(in srgb, var(--liquid-tint, var(--card)) 88%, transparent);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 35%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 10%, transparent);
+}
+.dark .liquid-btn {
+  background: color-mix(in srgb, var(--liquid-tint, var(--card)) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 12%, transparent),
+    inset 0 -1px 0 0 color-mix(in oklch, black 30%, transparent);
+}
+.liquid-btn:hover {
+  filter: brightness(1.08);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-btn {
+    background: var(--liquid-tint, var(--card));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Lighter sibling for content cards (product/shop cards, address/order
+   cards, home stat boxes, etc). Originally a fully opaque `background:
+   var(--card)` with just the specular highlight — reasoned as "nothing
+   scrolling behind a static card to blur". That stopped being true once
+   DecorativeBlobs became a persistent global backdrop behind every page:
+   there's now always something underneath worth revealing. A lighter
+   blur than `.liquid-glass-strong` (10px/140% vs. 24px/180%) keeps the
+   per-card compositing cost down given these render many-at-once in a
+   grid, unlike the handful of `.liquid-glass` chrome elements per page. */
+.liquid-surface {
+  isolation: isolate;
+  --liquid-ring: inset 0 0 0 0 transparent;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 55%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 4%, transparent);
+}
+.dark .liquid-surface {
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
+    var(--liquid-ring),
+    inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent);
+}
+
+/* Accessibility: transparency and heavy blur are exactly the kind of
+   effect prefers-reduced-transparency exists for (vestibular/visual
+   strain, or just a user who finds moving blur distracting) — fall back
+   to a solid, high-contrast surface rather than degrading gracefully by
+   accident. Same intent as the prefers-reduced-motion block above. */
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass, .liquid-glass-strong, .liquid-surface {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent),
+                0 4px 12px color-mix(in oklch, var(--foreground) 5%, transparent);
+  }
+  .liquid-glass::before, .liquid-glass-strong::before, .liquid-surface::before {
+    display: none;
+  }
+}

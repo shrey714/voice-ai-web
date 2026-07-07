@@ -109,9 +109,9 @@ function OrdersPageInner() {
   const activeCount = orders.filter(o => activeStatuses.includes(o.status)).length
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border">
+      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1" aria-label="Back to shops">
@@ -190,7 +190,7 @@ function OrdersPageInner() {
                   disabled={!hasShop}
                   aria-label={hasShop ? `View order from ${order.shop_name ?? 'shop'}` : undefined}
                   className={cn(
-                    'w-full text-left bg-card rounded-2xl border overflow-hidden transition-all duration-200',
+                    'relative w-full text-left liquid-surface rounded-2xl border overflow-hidden transition-all duration-200',
                     hasShop ? 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer' : 'cursor-default',
                     isActive ? 'border-primary/25 ring-1 ring-primary/10' : 'border-border hover:border-primary/20',
                   )}

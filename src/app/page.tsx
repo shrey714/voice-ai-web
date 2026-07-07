@@ -22,12 +22,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SectionHeader } from '@/components/SectionHeader'
 import { EmptyState } from '@/components/EmptyState'
-import { DecorativeBlobs } from '@/components/DecorativeBlobs'
 import { RecentlyViewed } from '@/components/RecentlyViewed'
 import { Reveal } from '@/components/Reveal'
 import { useHeaderScroll } from '@/lib/useScroll'
 import { useWishlist } from '@/lib/wishlist'
 import { LocationChip } from '@/components/LocationChip'
+import BorderGlow from '@/components/BorderGlow'
 import {
   Search, ShoppingBag, LogOut, Bike, Store, Sparkles, User,
   ArrowRight, Clock, ShieldCheck, MapPin, Star, X, Heart, ShoppingBasket,
@@ -139,7 +139,7 @@ function TrustStrip() {
   return (
     <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
       {TRUST.map(({ Icon, label }) => (
-        <div key={label} className="flex flex-col items-center text-center gap-2 rounded-2xl border border-border bg-card px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
+        <div key={label} className="relative flex flex-col items-center text-center gap-2 rounded-2xl border border-border liquid-surface px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
           <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
             <Icon size={16} />
           </span>
@@ -171,13 +171,13 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
   const eta = seeded(shop.id + 'e', 12, 35)
   const outOfDeliveryRange = shop.delivery_enabled && shop.delivery_radius_km != null && distance != null && distance > shop.delivery_radius_km
 
-  return (
+  const card = (
     <Link
       href={`/${shop.shop_slug}`}
       aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}`}
       className={cn(
-        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full',
-        featured ? 'border-gradient shadow-soft' : 'border border-border bg-card hover:border-primary/30',
+        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full h-full',
+        featured && 'border-gradient shadow-soft',
       )}
     >
       {/* Banner */}
@@ -257,6 +257,21 @@ function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { 
       </div>
     </Link>
   )
+
+  // Featured cards already have their own static border-gradient — stacking
+  // the mouse-tracking glow on top would be visual overkill on the one card
+  // type that's already meant to stand out. Regular cards get the glow as
+  // their hover treatment instead of the lift (BorderGlow sets its own
+  // `transform` inline for the 3D layering trick, which would silently
+  // fight a `hover:-translate-y-1` class at equal specificity — same
+  // conflict-class as the `position` gotcha noted on .liquid-glass).
+  if (featured) return card
+
+  return (
+    <BorderGlow className="liquid-surface rounded-2xl transition-shadow duration-300 hover:shadow-float">
+      {card}
+    </BorderGlow>
+  )
 }
 
 /* ──────────────────────────────── Page ──────────────────────────────────── */
@@ -326,11 +341,10 @@ function HomePageInner() {
 
   return (
     <div className="relative min-h-screen">
-      <DecorativeBlobs className="h-[560px] bottom-auto" />
       {/* ── Header ── */}
       <header className={cn(
-        'sticky top-0 z-40 border-b transition-all duration-300',
-        scrolled ? 'glass-strong border-border shadow-soft' : 'glass border-transparent',
+        'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
+        scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-transparent',
         hidden && '-translate-y-full',
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -360,7 +374,7 @@ function HomePageInner() {
                   className="pl-10 h-10 rounded-xl"
                 />
                 {search && (
-                  <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:backdrop-blur-md transition-colors">
                     <X size={14} />
                   </button>
                 )}
@@ -430,7 +444,7 @@ function HomePageInner() {
                 className="pl-10 h-10 rounded-xl"
               />
               {search && (
-                <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:backdrop-blur-md transition-colors">
                   <X size={14} />
                 </button>
               )}
@@ -459,7 +473,7 @@ function HomePageInner() {
               { label: 'Open Now', value: shops.filter(s => isShopOpen(s)).length },
               { label: 'With Delivery', value: shops.filter(s => s.delivery_enabled).length },
             ].map(stat => (
-              <div key={stat.label} className="rounded-2xl border border-border bg-card p-4 text-center">
+              <div key={stat.label} className="relative rounded-2xl border border-border liquid-surface p-4 text-center">
                 <p className="text-2xl sm:text-3xl font-black text-primary tracking-tight">{stat.value}</p>
                 <p className="text-xs text-muted-foreground font-medium mt-0.5">{stat.label}</p>
               </div>

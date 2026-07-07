@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 
 export default function ProductNotFound() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6">
+    <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center space-y-4">
         <AlertCircle size={32} className="text-muted-foreground mx-auto" />
         <p className="font-bold text-foreground">Product not found</p>

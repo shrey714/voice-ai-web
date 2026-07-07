@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 function ProductCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden">
+    <div className="relative liquid-surface rounded-2xl border border-border overflow-hidden">
       <Skeleton className="w-full aspect-square rounded-none" />
       <div className="p-3 space-y-2">
         <Skeleton className="h-3 w-2/5" />
@@ -19,8 +19,8 @@ function ProductCardSkeleton() {
 /** Suspense fallback while the server fetches the shop + catalog. */
 export default function LoadingShop() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 glass border-b border-border">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Skeleton className="size-8 rounded-lg" />
