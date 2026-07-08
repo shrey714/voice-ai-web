@@ -21,7 +21,7 @@ import { LocationPicker } from '@/components/LocationPicker'
 import { EmptyState } from '@/components/EmptyState'
 import {
   ArrowLeft, User, Phone, MapPin, FileText, Truck, Store,
-  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation, Pencil, Clock,
+  CheckCircle, AlertCircle, Loader2, Tag, Check, Wallet, Banknote, Navigation, Pencil, Clock, PartyPopper,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
 
@@ -307,7 +307,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
       <header ref={headerRef} className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
-            <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Go back">
+            {/* Explicit destination, not router.back() — checkout can be
+                reopened fresh (bookmark, PWA relaunch, refresh) with no
+                history to go back to. The shop is the unambiguous parent. */}
+            <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="text-muted-foreground -ml-1" aria-label="Back to shop">
               <ArrowLeft size={18} />
             </Button>
             <div className="min-w-0">
@@ -610,8 +613,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
                 <span className="font-black text-xl text-primary tracking-tight">{formatPrice(total)}</span>
               </div>
               {discount > 0 && (
-                <p className="text-xs text-success font-semibold text-right -mt-1">
-                  You save <span key={discount} className="inline-block animate-count">{formatPrice(discount)}</span> 🎉
+                <p className="text-xs text-success font-semibold text-right -mt-1 flex items-center justify-end gap-1">
+                  You save <span key={discount} className="inline-block animate-count">{formatPrice(discount)}</span>
+                  <PartyPopper size={12} className="shrink-0" />
                 </p>
               )}
 
@@ -632,7 +636,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ slug: strin
               </Button>
 
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                By placing your order you agree to the shop&apos;s terms and conditions.
+                By placing your order you agree to our{' '}
+                <Link href="/terms" target="_blank" className="text-primary font-semibold hover:underline">Terms</Link>
+                {' '}and{' '}
+                <Link href="/privacy" target="_blank" className="text-primary font-semibold hover:underline">Privacy Policy</Link>.
               </p>
             </div>
           </div>

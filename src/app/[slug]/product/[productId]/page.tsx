@@ -65,6 +65,7 @@ export default async function ProductDetailPage({
       '@type': 'Offer',
       price,
       priceCurrency: 'INR',
+      itemCondition: 'https://schema.org/NewCondition',
       availability: product.quantity > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',

@@ -86,7 +86,6 @@ export function ProductDetailClient({
   const cart = useCart(slug, shop.shop_name)
   const wishlist = useWishlist()
   const recent = useRecentlyViewed()
-  const vt = useViewTransition()
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
   const [burst, setBurst] = useState(false)
@@ -175,7 +174,12 @@ export function ProductDetailClient({
       {/* Header */}
       <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" onClick={() => vt.back()} className="-ml-1" aria-label="Go back">
+          {/* Explicit destination, not vt.back()/router.back() — this page is
+              routinely opened directly via a shared product link with no
+              browser history to go back to, in which case history.back()
+              silently does nothing (or worse, exits the app). The shop this
+              product belongs to is always the correct, unambiguous target. */}
+          <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="-ml-1" aria-label="Back to shop">
             <ArrowLeft size={18} />
           </Button>
           {/* Not an <h1>: the page's single <h1> is the product title in the details column below. */}

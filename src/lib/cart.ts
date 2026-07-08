@@ -79,6 +79,23 @@ export function useCart(shopId: string, shopName = '') {
   }
 }
 
+/**
+ * Imperative reorder: drop a past order's items straight into a shop's basket
+ * without mounting `useCart(slug)` for that shop (the orders list shows many
+ * shops at once, so a per-row hook isn't possible). Safe to call from an event
+ * handler — the store is already rehydrated app-wide by BottomNav/Footer on
+ * mount, so `getState()` reads the live persisted basket, not the empty initial
+ * one. `addItem` merges quantities into whatever's already there.
+ */
+export function addItemsToCart(
+  shopId: string,
+  shopName: string,
+  items: Array<Omit<CartItem, 'quantity'> & { quantity: number }>,
+) {
+  const { addItem } = useCartStore.getState()
+  items.forEach(({ quantity, ...item }) => addItem(shopId, shopName, item, quantity))
+}
+
 export interface OtherCart {
   slug: string
   shopName: string

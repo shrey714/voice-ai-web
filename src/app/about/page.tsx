@@ -6,6 +6,7 @@ import { SITE_NAME } from '@/lib/site'
 export const metadata: Metadata = {
   title: 'About Us',
   description: `${SITE_NAME} connects you with local shops near you — fresh products, fast delivery, and support for your neighbourhood.`,
+  alternates: { canonical: '/about' },
 }
 
 export default function AboutPage() {

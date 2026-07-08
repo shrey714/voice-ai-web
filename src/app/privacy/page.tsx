@@ -6,12 +6,13 @@ import { SITE_NAME } from '@/lib/site'
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: `How ${SITE_NAME} collects, uses, and protects your data.`,
+  alternates: { canonical: '/privacy' },
 }
 
 export default function PrivacyPage() {
   return (
     <StaticPageShell title="Privacy Policy" icon={<ShieldCheck size={17} className="text-primary" />}>
-      <p className="text-xs text-muted-foreground">Last updated: 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated: July 2026</p>
       <StaticSection title="What we collect">
         <ul className="list-disc pl-5 space-y-1.5">
           <li>Your phone number, used only for order verification and delivery updates.</li>

@@ -125,10 +125,10 @@ function AuthForm() {
         <div className="w-full max-w-sm space-y-6">
           {/* Icon + heading */}
           <div className="text-center space-y-3">
-            <div className={cn('rounded-2xl mx-auto flex items-center justify-center transition-all duration-300')}>
+            <div className="size-16 rounded-2xl mx-auto flex items-center justify-center bg-chart-1/20 text-chart-1 shadow-sm transition-all duration-300">
               {step === 'phone'
-                ? <Phone size={26} className="text-chart-1" />
-                : <ShieldCheck size={26} className="text-chart-1" />}
+                ? <Phone size={26} />
+                : <ShieldCheck size={26} />}
             </div>
             <div>
               <h1 className="text-2xl font-black text-foreground tracking-tight">

@@ -6,12 +6,13 @@ import { SITE_NAME } from '@/lib/site'
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description: `The terms that govern your use of ${SITE_NAME}.`,
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {
   return (
     <StaticPageShell title="Terms of Service" icon={<FileText size={17} className="text-primary" />}>
-      <p className="text-xs text-muted-foreground">Last updated: 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated: July 2026</p>
       <StaticSection title="1. Using the platform">
         <p>
           {SITE_NAME} lets you browse and order from independent local shops. Each shop is

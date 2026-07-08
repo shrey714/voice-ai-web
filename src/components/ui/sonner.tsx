@@ -38,14 +38,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           // Layout only — no color here, so per-type classes below always win.
           toast:
-            "cn-toast flex items-start gap-3 w-full rounded-2xl border px-4 py-3.5 shadow-premium backdrop-blur-sm",
+            "cn-toast flex items-center gap-3 w-full rounded-2xl border px-4 py-3.5 shadow-premium backdrop-blur-sm",
           title: "text-sm font-bold text-foreground leading-tight",
           description: "text-xs text-muted-foreground mt-0.5 leading-snug",
           icon: "flex size-8 shrink-0 items-center justify-center rounded-full mt-0.5 [&_svg]:size-4",
           closeButton:
-            "!bg-card !border-border !text-muted-foreground hover:!text-foreground",
-          actionButton: "!bg-primary !text-primary-foreground !rounded-lg !text-xs !font-bold",
-          cancelButton: "!bg-muted !text-muted-foreground !rounded-lg !text-xs !font-semibold",
+            "!bg-transparent !border-none !text-muted-foreground hover:!text-foreground !px-2 !py-1",
+          actionButton: "!bg-primary !text-primary-foreground !rounded-lg !text-xs !font-bold !px-2 !py-1",
+          cancelButton: "!bg-muted !text-muted-foreground !rounded-lg !text-xs !font-semibold !px-2 !py-1",
           // Every routine confirmation (cart, saved address, location…) rides on the
           // app's own teal identity instead of a generic green "success" pill.
           default: "border-border bg-card [&_[data-icon]]:bg-muted [&_[data-icon]]:text-muted-foreground",
@@ -54,6 +54,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           info: "border-primary/20 bg-primary/8 [&_[data-icon]]:bg-primary/15 [&_[data-icon]]:text-primary",
           warning: "border-warning/25 bg-warning/10 [&_[data-icon]]:bg-warning/20 [&_[data-icon]]:text-warning",
           error: "border-destructive/20 bg-destructive/8 [&_[data-icon]]:bg-destructive/15 [&_[data-icon]]:text-destructive",
+          content: "flex-1",
         },
       }}
       {...props}

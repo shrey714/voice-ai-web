@@ -2,7 +2,9 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryState, parseAsStringEnum } from 'nuqs'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { addItemsToCart } from '@/lib/cart'
 import { OnlineOrder } from '@/lib/types'
 import { cn, formatPrice, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { EmptyState } from '@/components/EmptyState'
 import {
   ArrowLeft, ShoppingBag, Clock, CheckCircle, XCircle,
-  Package, Star, AlertCircle, ChevronRight, Store,
+  Package, Star, AlertCircle, ChevronRight, Store, Repeat2,
 } from 'lucide-react'
 
 const STATUS_MAP = {
@@ -108,6 +110,20 @@ function OrdersPageInner() {
 
   const activeCount = orders.filter(o => activeStatuses.includes(o.status)).length
 
+  // Re-add a past order's items to that shop's basket, then land on the shop so
+  // the customer reviews the live catalog (prices/stock may have moved) before
+  // checkout re-validates. Mirrors the order-tracking "Order Again" flow.
+  const handleReorder = (order: OrderRow) => {
+    if (!order.shop_slug) return
+    addItemsToCart(order.shop_slug, order.shop_name ?? '', order.items.map(i => ({
+      productId: i.productId, name: i.productName, price: i.unitPrice, unit: '', quantity: i.quantity,
+    })))
+    toast.success('Added to your cart', {
+      description: `${order.items.length} item${order.items.length !== 1 ? 's' : ''} from ${order.shop_name ?? 'this shop'}`,
+    })
+    router.push(`/${order.shop_slug}`)
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -184,18 +200,26 @@ function OrdersPageInner() {
               const hasShop = !!order.shop_slug
 
               return (
-                <button
+                // Card is a plain container, not a <button>, so the Reorder
+                // action can live inside it without nesting interactive
+                // elements. The whole-card "view order" tap is a stretched,
+                // keyboard-focusable button layered under Reorder (z-10 vs z-20).
+                <div
                   key={order.id}
-                  onClick={() => hasShop && router.push(`/${order.shop_slug}/order/${order.id}`)}
-                  disabled={!hasShop}
-                  aria-label={hasShop ? `View order from ${order.shop_name ?? 'shop'}` : undefined}
                   className={cn(
                     'relative w-full text-left liquid-surface rounded-2xl border overflow-hidden transition-all duration-200',
-                    hasShop ? 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer' : 'cursor-default',
+                    hasShop ? 'hover:shadow-md hover:-translate-y-0.5' : '',
                     isActive ? 'border-primary/25 ring-1 ring-primary/10' : 'border-border hover:border-primary/20',
                   )}
                 >
                   {isActive && <div className="h-0.5 bg-gradient-to-r from-primary to-primary/60" />}
+                  {hasShop && (
+                    <button
+                      onClick={() => router.push(`/${order.shop_slug}/order/${order.id}`)}
+                      aria-label={`View order from ${order.shop_name ?? 'shop'}`}
+                      className="absolute inset-0 z-10 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    />
+                  )}
                   <div className="p-4 space-y-3">
                     <div className="flex items-start gap-3">
                       <div className={cn('size-10 rounded-xl flex items-center justify-center shrink-0', isActive ? 'bg-primary/10' : 'bg-muted')}>
@@ -223,8 +247,17 @@ function OrdersPageInner() {
                       </span>
                       <span className="font-black text-base text-foreground">{formatPrice(order.total)}</span>
                     </div>
+
+                    {hasShop && (
+                      <button
+                        onClick={() => handleReorder(order)}
+                        className="relative z-20 w-full flex items-center justify-center gap-1.5 h-9 rounded-xl liquid-surface liquid-glass-interactive text-xs font-bold text-primary press"
+                      >
+                        <Repeat2 size={14} /> Reorder
+                      </button>
+                    )}
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>

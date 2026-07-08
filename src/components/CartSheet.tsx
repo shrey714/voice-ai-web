@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 import { useCart } from '@/lib/cart'
 import { useIsShopOpen } from '@/lib/useIsShopOpen'
 import { Shop } from '@/lib/types'
@@ -25,6 +26,22 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
   // shop closed — re-check live status here instead of trusting the cart's
   // mere presence as permission to check out.
   const shopOpen = useIsShopOpen(shop)
+
+  // Clear the whole basket in one tap, but keep it reversible — snapshot the
+  // items first so an accidental clear can be undone from the toast (same
+  // forgiving pattern as the wishlist remove-undo).
+  const handleClear = () => {
+    const snapshot = cart.items
+    if (snapshot.length === 0) return
+    cart.clearCart()
+    toast('Cart cleared', {
+      action: {
+        label: 'Undo',
+        onClick: () => snapshot.forEach(i =>
+          cart.addItem({ productId: i.productId, name: i.name, price: i.price, unit: i.unit }, i.quantity)),
+      },
+    })
+  }
 
   return (
     <Sheet open={open} onOpenChange={o => !o && onClose()}>
@@ -79,6 +96,15 @@ export function CartSheet({ cart, shop, onCheckout, open, onClose }: CartSheetPr
 
         {cart.items.length > 0 && (
           <div className="relative p-4 border-t border-border space-y-3 liquid-glass-strong liquid-edge">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{cart.count} item{cart.count !== 1 ? 's' : ''} in cart</span>
+              <button
+                onClick={handleClear}
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 size={12} /> Clear cart
+              </button>
+            </div>
             <div className="space-y-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>

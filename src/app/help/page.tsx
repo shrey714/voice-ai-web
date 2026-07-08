@@ -5,6 +5,7 @@ import { StaticPageShell, StaticSection } from '@/components/StaticPageShell'
 export const metadata: Metadata = {
   title: 'Help Center',
   description: 'Answers to common questions about ordering, delivery, payments, and returns.',
+  alternates: { canonical: '/help' },
 }
 
 const FAQS = [
@@ -18,7 +19,7 @@ const FAQS = [
   },
   {
     q: 'Can I cancel or change my order?',
-    a: 'Contact the shop directly using the phone number on your order tracking page — orders are fulfilled by the shop, so they have the fastest way to help.',
+    a: "A new order stays 'pending' until the shop confirms it. If it isn't confirmed within the shop's time window it's cancelled automatically — and since payment is Cash on Delivery or Pay at Store, nothing is charged. Once a shop confirms an order they've already started preparing it, so it can't be changed from here; just place a fresh order for anything you missed.",
   },
   {
     q: 'How do I track my order?',
@@ -48,9 +49,10 @@ export default function HelpPage() {
       </StaticSection>
       <StaticSection title="Still need help?">
         <p>
-          Reach out to the shop directly for order-specific questions — their contact details are
-          on your order tracking page. For anything else, we&apos;re always working on making
-          this easier.
+          Every order has a live tracking page that updates on its own as the shop moves it from
+          received to confirmed, ready, and delivered — so you can always see exactly where things
+          stand. The shop fulfilling your order is closest to the details, and for anything else
+          we&apos;re always working on making this easier.
         </p>
       </StaticSection>
     </StaticPageShell>

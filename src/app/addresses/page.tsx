@@ -113,7 +113,9 @@ function AddressesInner() {
       <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="flex items-center gap-3 h-14">
-            <Button variant="ghost" size="icon-sm" onClick={() => router.back()} className="text-muted-foreground -ml-1" aria-label="Back">
+            {/* Explicit destination, not router.back() — reachable via a
+                direct URL/bookmark with no history to return to. */}
+            <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1" aria-label="Back to home">
               <ArrowLeft size={18} />
             </Button>
             <div className="flex-1">

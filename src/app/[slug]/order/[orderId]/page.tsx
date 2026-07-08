@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { useCart } from '@/lib/cart'
 import { OnlineOrder, OrderStatus } from '@/lib/types'
 import { cn, formatPrice, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -64,10 +66,29 @@ const STEPS: { key: OrderStatus; label: string; Icon: React.ElementType }[] = [
 export default function OrderStatusPage({ params }: { params: Promise<{ slug: string; orderId: string }> }) {
   const { slug, orderId } = use(params)
   const router = useRouter()
+  const cart = useCart(slug)
   const [order, setOrder] = useState<OnlineOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
+
+  // Re-add every item from this order to the shop's cart, then send the
+  // customer to the shop to review (prices/stock may have shifted since) —
+  // checkout re-validates server-side, so browsing the live catalog first
+  // is the honest place to land, not a straight jump to pay.
+  const handleReorder = (items: OnlineOrder['items']) => {
+    items.forEach(it => cart.addItem(
+      // Order items don't store `unit`; the shop page reconciles display
+      // details from the live product anyway. Price is the ordered price —
+      // checkout recomputes the authoritative total on submit.
+      { productId: it.productId, name: it.productName, price: it.unitPrice, unit: '' },
+      it.quantity,
+    ))
+    toast.success('Added to your cart', {
+      description: `${items.length} item${items.length !== 1 ? 's' : ''} from this order`,
+    })
+    router.push(`/${slug}`)
+  }
 
   useEffect(() => {
     // First-order celebration — fires once per browser
@@ -282,7 +303,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ slug: st
         )}
 
         {isTerminal && (
-          <Button className="w-full gap-2 h-11" onClick={() => router.push(`/${slug}`)}>
+          <Button className="w-full gap-2 h-11" onClick={() => handleReorder(order.items)}>
             <Repeat2 size={16} /> Order Again
           </Button>
         )}
