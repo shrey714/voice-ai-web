@@ -186,13 +186,13 @@ export function AddressDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden rounded-3xl">
+      <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden rounded-3xl">
         <DialogHeader className="p-5 pb-3 border-b border-border text-left">
           <DialogTitle>{editingId ? 'Edit address' : 'Add new address'}</DialogTitle>
           <DialogDescription>Pin your exact location and add delivery details.</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh]">
+        <ScrollArea className="max-h-[min(600px,65vh)]">
           <div className="p-5 space-y-4">
             {/* Search any location (works away from home / GPS off) */}
             <div className="space-y-2">

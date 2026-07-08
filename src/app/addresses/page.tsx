@@ -105,7 +105,7 @@ function AddressesInner() {
     refresh()
   }
 
-  if (loading) return <BrandLoader label="Loading addresses…" />
+  if (loading) return <BrandLoader className='min-h-[70vh]' label="Loading addresses…" />
 
   return (
     <div className="min-h-screen">

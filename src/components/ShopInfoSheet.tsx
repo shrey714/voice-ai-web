@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import {
   Bike, Clock, MapPin, Navigation, Share2, FileText, Ban, Loader2, LocateFixed,
 } from 'lucide-react'
+import { ScrollArea } from './ui/scroll-area'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -105,6 +106,7 @@ export function ShopInfoSheet({ shop, open, onClose }: ShopInfoSheetProps) {
           </div>
         </SheetHeader>
 
+      <ScrollArea className="flex-1 overflow-y-auto">
         <div className="p-4 sm:p-5 space-y-4">
           {/* Description */}
           {shop.description && (
@@ -185,6 +187,7 @@ export function ShopInfoSheet({ shop, open, onClose }: ShopInfoSheetProps) {
             <Share2 size={15} /> Share this shop
           </Button>
         </div>
+      </ScrollArea>
       </SheetContent>
     </Sheet>
   )

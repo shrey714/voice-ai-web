@@ -31,6 +31,9 @@ const CSP = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+    allowedDevOrigins: [
+    "192.168.1.15",
+  ],
   images: {
     // Product/shop images are served from the public Supabase Storage bucket.
     // next/image (optimized on Vercel) requires the remote host to be allow-listed.

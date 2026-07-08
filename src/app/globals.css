@@ -184,6 +184,11 @@
     }
 }
 
+  html body[data-scroll-locked] {
+    overflow: visible !important;
+    margin-right: 0 !important;
+  } 
+
 /* ── Frosted glass surface (headers / sticky bars) ───────────────────── */
 .glass {
   background: color-mix(in srgb, var(--background) 82%, transparent);
@@ -571,10 +576,10 @@ html { scroll-behavior: smooth; }
 }
 .liquid-glass-interactive:hover {
   box-shadow:
-    inset 0 1px 0 0 color-mix(in oklch, white 60%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, white 30%, transparent),
-    inset 0 -1px 0 0 color-mix(in oklch, black 6%, transparent),
-    0 10px 36px color-mix(in oklch, var(--foreground) 14%, transparent);
+    inset 0 1px 0 0 color-mix(in oklch, var(--primary) 60%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, var(--primary) 30%, transparent),
+    inset 0 0 0 0 color-mix(in oklch, black 6%, transparent),
+    0 0 3px color-mix(in oklch, var(--foreground) 14%, transparent);
 }
 .liquid-glass-interactive:active {
   transform: scale(0.97);

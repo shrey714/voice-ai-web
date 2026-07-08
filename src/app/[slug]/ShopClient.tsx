@@ -555,7 +555,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
 
           {/* Location · Search bar & Filter button */}
           <div className="pb-3 flex gap-2 items-center">
-            <LocationChip className="shrink-0 max-w-[45%] sm:max-w-[240px] border-r border-border pr-2" />
+            <LocationChip className="shrink-0 max-w-[45%] sm:max-w-[240px] border-r border-input pr-2" />
             <ProductSearch
               value={search}
               onChange={v => { setQueryState({ q: v }); setActiveCategory('all') }}
@@ -564,7 +564,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               placeholder={`Search in ${shop.shop_name}…`}
               className="flex-1"
             />
-            <Button variant="ghost" size="icon-sm" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 text-muted-foreground relative" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
+            <Button variant="ghost" size="default" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 text-muted-foreground relative border-0 rounded-xl border-l border-input" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
               <Sliders size={16} />
               {activeFilterCount > 0 && (
                 <span className="absolute -top-1 -right-1 size-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">{activeFilterCount}</span>
@@ -588,7 +588,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               <div className="px-3.5 py-2.5 border-b border-border">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Categories</p>
               </div>
-              <div className="py-1.5">
+              <div className="p-1.5 flex flex-col gap-1.5">
                 <button
                   onClick={() => scrollToCategory('all')}
                   className={cn(
@@ -663,7 +663,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                   onClick={() => scrollToCategory('all')}
                   className={cn(
                     'flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap liquid-glass-interactive press',
-                    activeCategory === 'all' ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground hover:text-primary',
+                    activeCategory === 'all' ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground',
                   )}
                 >
                   <Layers size={11} /> All
@@ -675,7 +675,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                     onClick={() => scrollToCategory(cat)}
                     className={cn(
                       'px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap liquid-glass-interactive press',
-                      activeCategory === cat ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground hover:text-primary',
+                      activeCategory === cat ? 'liquid-btn [--liquid-tint:var(--primary)] text-primary-foreground scale-105' : 'liquid-surface text-muted-foreground',
                     )}
                   >
                     {cat}
