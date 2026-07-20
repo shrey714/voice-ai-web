@@ -61,8 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           base fill itself, so there's no ambiguity between body's own
           background and a fixed, negative-z-index child fighting over which
           one is "the" page background. */}
-      {/* overflow-x-clip: decorative bleed (BorderGlow's outer glow span, blob
-          gradients) can extend past a viewport-edge element without this —
+      {/* overflow-x-clip: decorative bleed (blob gradients, the hero's blurred
+          wash) can extend past a viewport-edge element without this —
           harmless in isolation, but it expands the document's own scrollable
           width, causing whole-page horizontal scroll and, downstream, a
           layout-shift glitch in sheet slide-in animations that assume the

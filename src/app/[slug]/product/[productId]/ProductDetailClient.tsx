@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -23,21 +23,8 @@ import {
 } from '@/components/ui/carousel'
 import {
   ArrowLeft, Heart, Share2, ShoppingCart, Check, Package,
-  Truck, AlertCircle, Store, ShieldCheck, RotateCcw, Plus, Minus, Star, Bike, Flame, Layers,
+  AlertCircle, Store, Plus, Minus, Star, Bike, Layers,
 } from 'lucide-react'
-
-const HIGHLIGHTS = [
-  'Sourced from trusted local suppliers',
-  'Freshness guaranteed on every order',
-  'Carefully packed for safe delivery',
-  'Backed by an easy return policy',
-]
-
-const SAMPLE_REVIEWS = [
-  { name: 'Priya S.', title: 'Great quality!', body: 'Exactly as described and delivered fresh. Will order again.' },
-  { name: 'Rahul M.', title: 'Worth the price', body: 'Good value for money and quick delivery from my local shop.' },
-  { name: 'Anjali K.', title: 'Highly recommended', body: 'Packaging was neat and the product quality was excellent.' },
-]
 
 function MiniProductCard({ product, slug }: { product: OnlineProduct; slug: string }) {
   const vt = useViewTransition()
@@ -116,17 +103,7 @@ export function ProductDetailClient({
   const rating = seeded(product.product_id + 'r', 3.6, 4.9, 1)
   const reviewCount = seeded(product.product_id + 'c', 24, 320)
   const freeDelivery = seeded(product.product_id + 'd', 0, 10) > 5
-  const estimatedDays = seeded(product.product_id + 'e', 1, 3)
-  const boughtToday = seeded(product.product_id + 'b', 8, 60)
   const lowStock = !outOfStock && product.quantity <= 5
-  // Computed once per mount rather than inline in JSX — Date.now() read directly during
-  // render is impure and, since this is a Client Component (server-rendered once, then
-  // hydrated), could disagree with the server's clock and trigger a hydration mismatch.
-  /* eslint-disable react-hooks/purity -- one-time-per-mount Date.now() read, see comment above */
-  const deliveryDateLabel = useMemo(() => (
-    new Date(Date.now() + estimatedDays * 86400000).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })
-  ), [estimatedDays])
-  /* eslint-enable react-hooks/purity */
 
   const similar = allProducts
     .filter(p => p.product_id !== product.product_id)
@@ -170,8 +147,7 @@ export function ProductDetailClient({
   }
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0">
-      {/* Header */}
+    <div className="min-h-screen pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
           {/* Explicit destination, not vt.back()/router.back() — this page is
@@ -179,11 +155,19 @@ export function ProductDetailClient({
               browser history to go back to, in which case history.back()
               silently does nothing (or worse, exits the app). The shop this
               product belongs to is always the correct, unambiguous target. */}
-          <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="-ml-1" aria-label="Back to shop">
+          <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/${slug}`)} className="-ml-1 shrink-0" aria-label="Back to shop">
             <ArrowLeft size={18} />
           </Button>
-          {/* Not an <h1>: the page's single <h1> is the product title in the details column below. */}
-          <p className="font-bold text-foreground flex-1 truncate text-sm sm:text-base" aria-hidden>{product.name}</p>
+          {/* Shop context that was previously only reachable via the back
+              arrow — a shopper landing here from a shared link had no way
+              to tell which shop they're in without tapping back first. */}
+          <button
+            onClick={() => router.push(`/${slug}`)}
+            className="flex-1 min-w-0 flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary transition-colors truncate"
+          >
+            <Store size={14} className="shrink-0" />
+            <span className="truncate">{shop.shop_name}</span>
+          </button>
           <GlassIconButton onClick={handleShare} aria-label="Share" icon={<Share2 size={16} />} />
           <GlassIconButton onClick={() => setCartOpen(true)} aria-label="View cart" icon={<ShoppingCart size={16} />}>
             {cart.count > 0 && (
@@ -243,11 +227,8 @@ export function ProductDetailClient({
             <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">{product.category || 'Product'}</p>
             <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight tracking-tight">{product.name}</h1>
             <p className="text-sm text-muted-foreground mt-1">{product.unit}</p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <div className="mt-2.5">
               <RatingStars rating={rating} count={reviewCount} size="md" />
-              <span className="text-xs font-semibold text-primary flex items-center gap-1">
-                <Flame size={12} className="shrink-0" /> {boughtToday} bought in the last 24h
-              </span>
             </div>
           </div>
 
@@ -272,16 +253,22 @@ export function ProductDetailClient({
               )}
             </div>
 
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Truck size={16} className="text-success" />
-                <span>Delivery by <span className="font-semibold text-foreground">
-                  {deliveryDateLabel}
-                </span></span>
-              </div>
-              {freeDelivery && <p className="text-sm text-success font-semibold flex items-center gap-1.5"><Check size={14} /> Free delivery on this item</p>}
-            </div>
+            {/* The old "Delivery by {date}" line here was a per-product
+                `seeded()` 1–3 day estimate dressed up as a shipping promise —
+                fabricated, and it contradicts both the real DeliveryCountdown
+                right below (which promises "the fastest slot", not a multi-day
+                wait) and the minutes-based ETA the rest of the app uses for
+                delivery (shop cards, ShopClient). Removed rather than
+                replaced: DeliveryCountdown is the one real delivery-timing
+                signal on this page, so this section is skipped entirely
+                (Separator included) when there's no free-delivery chip to
+                show either, rather than leaving a bare rule above nothing. */}
+            {freeDelivery && (
+              <>
+                <Separator />
+                <p className="text-sm text-success font-semibold flex items-center gap-1.5"><Check size={14} /> Free delivery on this item</p>
+              </>
+            )}
           </div>
 
           {/* Delivery urgency countdown */}
@@ -305,20 +292,6 @@ export function ProductDetailClient({
               </Button>
             </div>
           )}
-
-          {/* Trust row */}
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              { Icon: ShieldCheck, label: 'Verified seller' },
-              { Icon: Truck, label: 'Fast delivery' },
-              { Icon: RotateCcw, label: 'Easy returns' },
-            ].map(({ Icon, label }) => (
-              <div key={label} className="relative flex flex-col items-center gap-1.5 text-center rounded-2xl border border-border liquid-surface p-3">
-                <Icon size={18} className="text-primary" />
-                <span className="text-[11px] font-medium text-muted-foreground leading-tight">{label}</span>
-              </div>
-            ))}
-          </div>
 
           {/* Frequently bought together */}
           {bundlePartners.length > 0 && (
@@ -371,72 +344,39 @@ export function ProductDetailClient({
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-foreground text-sm truncate">{shop.shop_name}</p>
-              <Badge variant="success" className="text-[10px] mt-1"><ShieldCheck /> Verified Seller</Badge>
+              <p className="text-xs text-muted-foreground">{shop.address_text || 'Local shop'}</p>
             </div>
             <Button variant="secondary" size="sm" onClick={() => router.push(`/${slug}`)} className="gap-1.5">
               <Store size={14} /> Visit
             </Button>
           </div>
-
-          {/* Highlights */}
-          <div className="relative liquid-surface border border-border p-4 rounded-2xl">
-            <h3 className="font-bold text-foreground mb-3">Product highlights</h3>
-            <ul className="space-y-2">
-              {HIGHLIGHTS.map(h => (
-                <li key={h} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Check size={15} className="text-success mt-0.5 shrink-0" /> {h}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* About */}
-          <div className="relative liquid-surface border border-border p-4 rounded-2xl">
-            <h3 className="font-bold text-foreground mb-2">About this product</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              High-quality {product.name.toLowerCase()} sourced from trusted suppliers. Perfect for your everyday needs, available at {shop.shop_name}.
-            </p>
-          </div>
         </div>
       </div>
 
-      {/* Reviews */}
+      {/* Reviews — was a 3-column layout built to sit beside a per-star
+          percentage breakdown and a grid of three hardcoded reviews
+          ("Priya S." etc.) each carrying a false "Verified" badge. There is
+          no review data behind this product (OnlineProduct has no reviews
+          table), so all of that was fabricated and has been removed. What's
+          left is the one real, kept number: the seeded aggregate rating +
+          count (see ratings-scope decision) — sized and centred as what it
+          actually is, a single stat, not stretched to fill a 3-column grid
+          it no longer has content for. */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-border">
-        <SectionHeader title="Customer Reviews" icon={Star} subtitle={`${reviewCount} verified ratings`} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="relative liquid-surface border border-border p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-2">
-            <p className="text-5xl font-black text-foreground">{rating}</p>
-            <RatingStars rating={rating} size="md" />
-            <p className="text-sm text-muted-foreground">{reviewCount} reviews</p>
-          </div>
-          <div className="md:col-span-2 relative liquid-surface border border-border p-6 rounded-2xl space-y-3">
-            {[5, 4, 3, 2, 1].map(star => {
-              const pct = seeded(product.product_id + 's' + star, star >= 4 ? 40 : 3, star >= 4 ? 85 : 20)
-              return (
-                <div key={star} className="flex items-center gap-3">
-                  <span className="text-xs font-medium min-w-8 flex items-center gap-0.5">{star}<Star size={10} className="fill-star text-star" /></span>
-                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-star rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="text-xs text-muted-foreground min-w-10 text-right">{pct}%</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {SAMPLE_REVIEWS.map((r, i) => (
-            <div key={i} className="relative liquid-surface border border-border p-4 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <RatingStars rating={seeded(product.product_id + 'rv' + i, 4, 5, 0)} size="sm" />
-                <Badge variant="success" className="text-[10px]"><Check /> Verified</Badge>
-              </div>
-              <h4 className="font-semibold text-foreground text-sm">{r.title}</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">{r.body}</p>
-              <p className="text-xs text-muted-foreground font-medium">— {r.name}</p>
+        <SectionHeader title="Ratings" icon={Star} />
+        {/* Star row built from plain icons rather than <RatingStars>: that
+            component always appends its own "{rating}" text after the stars,
+            which would print 3.9 twice next to the headline number below. */}
+        <div className="relative liquid-surface border border-border rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 sm:justify-start">
+          <p className="text-5xl font-black text-foreground leading-none">{rating}</p>
+          <div className="flex flex-col items-center gap-1 sm:items-start">
+            <div className="flex gap-0.5" role="img" aria-label={`Rated ${rating.toFixed(1)} out of 5, ${reviewCount.toLocaleString()} ratings`}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star key={star} aria-hidden size={18} className={cn(star <= Math.round(rating) ? 'fill-star text-star' : 'text-muted-foreground')} />
+              ))}
             </div>
-          ))}
+            <p className="text-sm text-muted-foreground" aria-hidden>{reviewCount} ratings</p>
+          </div>
         </div>
       </div>
 
@@ -458,9 +398,11 @@ export function ProductDetailClient({
         </div>
       )}
 
-      {/* Sticky mobile add-to-cart bar */}
+      {/* Sticky mobile add-to-cart bar — sits above the global BottomNav
+          (fixed, every route, mobile-only) instead of the true screen
+          bottom, so the two fixed bars stack rather than overlap. */}
       {!outOfStock && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 liquid-glass-strong liquid-edge border-t border-border p-3 flex items-center gap-3">
+        <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 liquid-glass-strong liquid-edge border-t border-border p-3 flex items-center gap-3">
           <div className="flex items-center liquid-surface rounded-xl overflow-hidden shrink-0">
             <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="px-3 py-2.5 text-foreground"><Minus size={15} /></button>
             <span className="px-2 py-2.5 font-bold text-foreground min-w-[36px] text-center" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>

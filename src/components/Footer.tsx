@@ -1,11 +1,15 @@
 'use client'
 import { useTheme } from 'next-themes'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Sun, Moon, Monitor, Store, ShieldCheck, BadgeCheck, Headset } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SHOWN_ON } from '@/components/BottomNav'
+import { useAllCarts } from '@/lib/cart'
+
+// Top-level routes that aren't a `/[slug]` shop page — used to tell a shop
+// slug apart from a reserved route using only the pathname's first segment.
+const RESERVED_TOP_LEVEL = new Set(['about', 'addresses', 'auth', 'help', 'orders', 'privacy', 'terms', 'wishlist'])
 
 const THEMES = [
   { key: 'light',  label: 'Light',  Icon: Sun     },
@@ -29,23 +33,47 @@ const LINKS = [
 export function Footer() {
   const { theme, setTheme } = useTheme()
   const pathname = usePathname()
+  const allCarts = useAllCarts()
   // Avoid hydration mismatch — don't render active state until mounted
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
-  // Routes not covered by BottomNav (product/checkout/order-status — see the
-  // allowlist comment in BottomNav.tsx) each render their own fixed bottom
-  // bar instead. That bar has no in-flow spacer reserving room for it the
-  // way BottomNav's own spacer protects the Footer above it, so on those
-  // routes it was overlapping the last ~4.5rem of the Footer once scrolled
-  // into view. Reserve that space here too, mobile-only (bars are md:hidden).
-  const needsBottomBarSpace = !SHOWN_ON.includes(pathname) && pathname !== '/auth'
+  // BottomNav (4rem tall, mobile-only) is fixed and global, so Footer always
+  // reserves at least that much bottom padding — otherwise the nav covers
+  // Footer's last ~4rem once scrolled into view. Two routes stack a second
+  // fixed bar *above* BottomNav (see ShopClient's floating cart bar and
+  // ProductDetailClient's add-to-cart bar) and need extra clearance on top
+  // of the base amount; every other route would just carry that extra as
+  // unwanted empty space, so it's added only where it's actually needed.
+  const extraBarRem = useMemo(() => {
+    const segments = pathname.split('/').filter(Boolean)
+    const isShopSlug = segments.length >= 1 && !RESERVED_TOP_LEVEL.has(segments[0])
+    if (!isShopSlug) return 0
+    const isProductDetail = segments.length === 3 && segments[1] === 'product'
+    if (isProductDetail) return 4.75 // ProductDetailClient's sticky add-to-cart bar
+    const isShopRoot = segments.length === 1
+    if (isShopRoot && allCarts.some(c => c.slug === segments[0] && c.count > 0)) {
+      return 7 // ShopClient's floating "View Cart" bar
+    }
+    return 0
+  }, [pathname, allCarts])
 
   return (
     <footer className={cn(
-      'border-t border-border liquid-glass liquid-edge',
-      needsBottomBarSpace && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0',
-    )}>
+      // `relative z-[-1]`: .liquid-glass's own backdrop-filter makes this
+      // static element form its own stacking context. Chrome's compositor
+      // then paints that layer above other fixed-position layers elsewhere
+      // on the page (BottomNav, the per-page add-to-cart/cart bars) despite
+      // their higher z-index — a backdrop-filter compositing quirk, not a
+      // real stacking-order win. Explicit negative z-index (still above
+      // DecorativeBlobs' -z-10 page background) forces correct paint order.
+      // Custom property (not the property itself) is set inline so `md:pb-0`
+      // — a plain class — can still win on desktop; an inline `paddingBottom`
+      // would always beat it regardless of breakpoint.
+      'relative z-[-1] border-t border-border liquid-glass liquid-edge pb-[calc(4rem+var(--footer-extra-pb)+env(safe-area-inset-bottom))] md:pb-0',
+    )}
+    style={{ '--footer-extra-pb': `${extraBarRem}rem` } as React.CSSProperties}
+    >
       {/* Trust badges + link columns — kept to one slim row each so the
           footer stays compact (per earlier feedback) while still reading as
           a real storefront footer instead of just a brand strip. */}
@@ -72,7 +100,7 @@ export function Footer() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Left — brand + copy */}
-        <div className="flex items-center gap-2 text-center sm:text-left">
+        <div className="flex items-center gap-2 sm:text-left">
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
             <Store size={14} />
           </span>

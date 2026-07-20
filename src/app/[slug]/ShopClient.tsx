@@ -14,26 +14,24 @@ import { useWishlist } from '@/lib/wishlist'
 import { flyToCart } from '@/lib/flyToCart'
 import { useViewTransition } from '@/lib/useViewTransition'
 import { supabase } from '@/lib/supabase'
-import { useLocation } from '@/lib/location'
+import { useLocation, shortLocationText } from '@/lib/location'
 import { Shop, OnlineProduct } from '@/lib/types'
 import { cn, formatPrice, seeded, distanceKm } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { RatingStars } from '@/components/RatingStars'
 import { EmptyState } from '@/components/EmptyState'
 import { ProductSearch } from '@/components/ProductSearch'
 import { ProductFilters, type FilterState } from '@/components/ProductFilters'
 import { RecentlyViewed } from '@/components/RecentlyViewed'
-import { LocationChip } from '@/components/LocationChip'
+import { LocationPicker } from '@/components/LocationPicker'
 import { ShopInfoSheet } from '@/components/ShopInfoSheet'
 import { CartSheet } from '@/components/CartSheet'
 import { GlassIconButton } from '@/components/GlassIconButton'
-import BorderGlow from '@/components/BorderGlow'
 import { useHeaderScroll } from '@/lib/useScroll'
 import {
-  Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart,
-  Bike, Clock, ShoppingBag, Layers, ArrowRight, Sliders, Info, ShoppingBasket, Store, ChevronRight,
+  Search, ArrowLeft, ShoppingCart, Plus, Minus, Package, Heart, Star,
+  Bike, Clock, ShoppingBag, Layers, ArrowRight, Sliders, Info, ShoppingBasket, Store, ChevronRight, ChevronDown,
 } from 'lucide-react'
 import type { User as SupaUser } from '@supabase/supabase-js'
 
@@ -101,146 +99,161 @@ const ProductCard = memo(function ProductCard({
   const rating = seeded(product.product_id + 'r', 3.6, 4.9, 1)
   const reviewCount = seeded(product.product_id + 'c', 12, 240)
   const freeDelivery = seeded(product.product_id + 'd', 0, 10) > 5
-  const eta = seeded(product.product_id + 'e', 10, 30)
 
   const goDetails = () => vt.push(`/${slug}/product/${product.product_id}`, imgRef.current)
 
+  // Shared action (Add / stepper / disabled state) — rendered twice: as a
+  // compact button overlapping the image on mobile (matches the reference
+  // grocery-app layout), and inline in the price row from `sm:` up.
+  const action = disabled ? (
+    <div className="shrink-0 px-3 py-1.5 rounded-xl bg-muted text-xs text-muted-foreground font-semibold">
+      {outOfStock ? 'Sold out' : 'Closed'}
+    </div>
+  ) : cartQty === 0 ? (
+    <button
+      onClick={e => { e.stopPropagation(); handleQuickAdd() }}
+      className="shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-sm font-bold active:scale-95"
+    >
+      <Plus size={13} /> ADD
+    </button>
+  ) : (
+    <div className="shrink-0 flex items-center liquid-btn [--liquid-tint:var(--primary)] rounded-xl overflow-hidden shadow-sm animate-scale-in">
+      <button onClick={e => { e.stopPropagation(); onUpdateQty(product.product_id, cartQty - 1) }} aria-label="Decrease quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
+        <Minus size={13} />
+      </button>
+      <span key={cartQty} className="px-1 min-w-[22px] text-center text-sm font-black text-primary-foreground animate-count">{cartQty}</span>
+      <button
+        onClick={e => { e.stopPropagation(); if (cartQty < product.quantity) onUpdateQty(product.product_id, cartQty + 1) }}
+        disabled={cartQty >= product.quantity}
+        aria-label="Increase quantity"
+        className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25 disabled:opacity-40 disabled:pointer-events-none"
+      >
+        <Plus size={13} />
+      </button>
+    </div>
+  )
+
   return (
-    <BorderGlow
+    <div
       onPointerEnter={() => vt.prefetch(`/${slug}/product/${product.product_id}`)}
-      className="group liquid-surface transition-shadow duration-300 hover:shadow-lg flex flex-col"
+      onClick={goDetails}
+      className="group liquid-surface relative flex flex-col overflow-visible rounded-2xl border border-border cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-primary hover:shadow-lg"
     >
       {/* Image */}
-      <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden shrink-0 cursor-pointer" onClick={goDetails}>
-        {product.image_url && !imgErr ? (
-          <Image
-            src={product.image_url}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1280px) 25vw, 220px"
-            onError={() => setImgErr(true)}
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package size={30} className="text-muted-foreground" />
-          </div>
-        )}
-
-        {/* Discount badge */}
-        {discountPct > 0 && (
-          <div className="ribbon-shine absolute top-2 left-2 bg-destructive text-destructive-foreground text-[10px] font-black px-2 py-1 rounded-lg shadow-sm">
-            {discountPct}% OFF
-          </div>
-        )}
-
-        {/* Wishlist */}
-        <GlassIconButton
-          onClick={e => { e.stopPropagation(); handleWishlist() }}
-          aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute top-2 right-2 active:scale-95"
-          color={wishlisted ? 'linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))' : undefined}
-          icon={<Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted && 'fill-white scale-110')} />}
-        >
-          {burst && <span className="absolute inset-0 rounded-[1.25em] border-2 border-destructive animate-heart-ring" />}
-        </GlassIconButton>
-
-        {/* Free delivery ribbon */}
-        {freeDelivery && !outOfStock && (
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-success/90 text-success-foreground text-[9px] font-bold px-1.5 py-0.5 shadow-sm">
-            <Bike size={9} /> FREE
-          </div>
-        )}
-
-        {/* Out of stock overlay */}
-        {outOfStock && (
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex items-center justify-center">
-            <Badge variant="secondary" className="text-xs font-semibold">Out of Stock</Badge>
-          </div>
-        )}
-
-        {/* Quick-add slides in on hover (desktop) */}
-        {!disabled && cartQty === 0 && (
-          <div className="hidden md:block absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-            <button
-              onClick={e => { e.stopPropagation(); handleQuickAdd() }}
-              className="w-full liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-xs font-bold py-2.5 flex items-center justify-center gap-1"
-            >
-              <Plus size={13} /> Quick Add
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="p-3 flex flex-col flex-1">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <RatingStars rating={rating} count={reviewCount} size="sm" />
-        </div>
-
-        <button onClick={goDetails} className="text-left">
-          <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 line-clamp-2 hover:text-primary transition-colors">
-            {product.name}
-          </p>
-        </button>
-
-        <p className="text-xs text-muted-foreground mb-2">{product.unit}</p>
-
-        {!outOfStock && (
-          <div className="flex items-center gap-2 mb-2 mt-auto">
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <Clock size={10} /> {eta} min
-            </p>
-            {product.quantity <= 5 && (
-              <span className="text-[10px] font-bold text-destructive flex items-center gap-1">
-                <span className="inline-block size-1 rounded-full bg-destructive animate-pulse-live" />
-                {product.quantity} left
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Price + action */}
-        <div className={cn('flex items-center justify-between gap-2', outOfStock && 'mt-auto')}>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-1.5">
-              <p className="font-black text-[15px] text-foreground tracking-tight leading-none">{formatPrice(price)}</p>
-              {originalPrice && (
-                <p className="text-xs text-muted-foreground line-through leading-none">{formatPrice(originalPrice)}</p>
-              )}
-            </div>
-          </div>
-
-          {disabled ? (
-            <div className="shrink-0 px-3 py-1.5 rounded-xl bg-muted text-xs text-muted-foreground font-semibold">
-              {outOfStock ? 'Sold out' : 'Closed'}
-            </div>
-          ) : cartQty === 0 ? (
-            <button
-              onClick={handleQuickAdd}
-              className="shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-xl liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-sm font-bold active:scale-95"
-            >
-              <Plus size={13} /> ADD
-            </button>
+      <div className="relative shrink-0">
+        <div ref={imgRef} className="relative w-full aspect-square bg-muted overflow-hidden rounded-t-2xl">
+          {product.image_url && !imgErr ? (
+            <Image
+              src={product.image_url}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 33vw, (max-width: 768px) 33vw, (max-width: 1280px) 25vw, 220px"
+              onError={() => setImgErr(true)}
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
+            />
           ) : (
-            <div className="shrink-0 flex items-center liquid-btn [--liquid-tint:var(--primary)] rounded-xl overflow-hidden shadow-sm animate-scale-in">
-              <button onClick={() => onUpdateQty(product.product_id, cartQty - 1)} aria-label="Decrease quantity" className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25">
-                <Minus size={13} />
-              </button>
-              <span key={cartQty} className="px-1 min-w-[22px] text-center text-sm font-black text-primary-foreground animate-count">{cartQty}</span>
+            <div className="w-full h-full flex items-center justify-center">
+              <Package size={30} className="text-muted-foreground" />
+            </div>
+          )}
+
+          {/* Discount badge */}
+          {discountPct > 0 && (
+            <div className="ribbon-shine absolute top-2 left-2 bg-destructive text-destructive-foreground text-[10px] font-black px-2 py-1 rounded-lg shadow-sm">
+              {discountPct}% OFF
+            </div>
+          )}
+
+          {/* Wishlist */}
+          <GlassIconButton
+            onClick={e => { e.stopPropagation(); handleWishlist() }}
+            aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            className="absolute top-2 right-2 active:scale-95"
+            color={wishlisted ? 'linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))' : undefined}
+            icon={<Heart size={15} className={cn('transition-all', burst && 'animate-heart-burst', wishlisted && 'fill-white scale-110')} />}
+          >
+            {burst && <span className="absolute inset-0 rounded-[1.25em] border-2 border-destructive animate-heart-ring" />}
+          </GlassIconButton>
+
+          {/* Free delivery ribbon */}
+          {freeDelivery && !outOfStock && (
+            <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-success/90 text-success-foreground text-[9px] font-bold px-1.5 py-0.5 shadow-sm">
+              <Bike size={9} /> FREE
+            </div>
+          )}
+
+          {/* Out of stock overlay */}
+          {outOfStock && (
+            <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex items-center justify-center">
+              <Badge variant="secondary" className="text-xs font-semibold">Out of Stock</Badge>
+            </div>
+          )}
+
+          {/* Quick-add slides in on hover (desktop) */}
+          {!disabled && cartQty === 0 && (
+            <div className="hidden md:block absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
               <button
-                onClick={() => cartQty < product.quantity && onUpdateQty(product.product_id, cartQty + 1)}
-                disabled={cartQty >= product.quantity}
-                aria-label="Increase quantity"
-                className="size-7 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/15 transition-colors active:bg-primary-foreground/25 disabled:opacity-40 disabled:pointer-events-none"
+                onClick={e => { e.stopPropagation(); handleQuickAdd() }}
+                className="w-full liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground text-xs font-bold py-2.5 flex items-center justify-center gap-1"
               >
-                <Plus size={13} />
+                <Plus size={13} /> Quick Add
               </button>
             </div>
           )}
         </div>
+
+        {/* Mobile-only: action button floats over the image/info boundary,
+            matching the reference layout. The `sm:` breakpoint keeps the
+            existing inline action in the price row below. */}
+        <div className="sm:hidden absolute -bottom-3 right-2 z-10">{action}</div>
       </div>
-    </BorderGlow>
+
+      {/* Info */}
+      <div className="p-2.5 pt-5 sm:p-3 flex flex-col flex-1 rounded-b-2xl">
+        {/* Name first, then unit, then rating — the Blinkit/Zepto order. A row
+            of five stars used to sit ABOVE the name, so the loudest thing on
+            every card was placeholder review data and you read the product
+            last. Rating is now a compact chip that states the number instead
+            of drawing it. */}
+        <p className="font-bold text-xs sm:text-sm text-foreground leading-tight mb-0.5 line-clamp-2 group-hover:text-primary transition-colors">
+          {product.name}
+        </p>
+
+        <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{product.unit}</p>
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-foreground min-w-0">
+            <Star size={10} className="fill-star text-star shrink-0" />
+            {rating}
+            <span className="font-medium text-muted-foreground truncate">({reviewCount})</span>
+          </span>
+          {/* Per-product ETA is gone: it's shop-level data that was repeated
+              identically on all 14 cards. The header carries it once. */}
+          {!outOfStock && product.quantity <= 5 && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-destructive shrink-0">
+              <span className="inline-block size-1 rounded-full bg-destructive animate-pulse-live shrink-0" />
+              {product.quantity} left
+            </span>
+          )}
+        </div>
+
+        <div className="mt-auto pt-2" />
+
+        {/* Price + action (action hidden on mobile — it floats over the image instead) */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+              <p className="font-black text-sm sm:text-[15px] text-foreground tracking-tight leading-tight truncate max-w-full">{formatPrice(price)}</p>
+              {originalPrice && (
+                <p className="text-[10px] sm:text-xs text-muted-foreground line-through leading-tight truncate max-w-full">{formatPrice(originalPrice)}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="hidden sm:block shrink-0">{action}</div>
+        </div>
+      </div>
+    </div>
   )
 })
 
@@ -261,6 +274,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   const [cartOpen, setCartOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [locOpen, setLocOpen] = useState(false)
   // Slider ceiling derived from the actual catalog (rounded up), not a fixed
   // ₹10,000 that leaves most shops with a near-useless slider.
   const maxPrice = useMemo(() => {
@@ -324,6 +338,10 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
   const outOfDeliveryRange = shop.delivery_enabled && shop.delivery_radius_km != null
     && distanceToShop != null && distanceToShop > shop.delivery_radius_km
   const canDeliverHere = shop.delivery_enabled && !outOfDeliveryRange
+  // `outOfDeliveryRange` is false when no location is set (the distance is
+  // null), so `canDeliverHere` alone can't distinguish "we checked and it
+  // delivers" from "we have nothing to check against".
+  const locationKnown = selected?.latitude != null && selected?.longitude != null
 
   // Lightweight client-only session check (auth persists in the browser).
   useEffect(() => {
@@ -470,13 +488,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
       <header
         ref={headerRef}
         className={cn(
-          // Border/shadow are lg-only when the mobile category pill bar is
-          // present directly below — that bar carries its own bottom edge so
-          // the two read as one continuous glass panel instead of two stacked
-          // materials with a seam (and a header shadow bleeding through the
-          // bar's translucent blur) between them.
-          'sticky top-0 z-40 liquid-edge transition-all duration-300 lg:border-b lg:border-border',
-          scrolled ? 'liquid-glass-strong' : 'liquid-glass',
+          'sticky top-0 z-40 liquid-glass-strong liquid-edge transition-all duration-300 lg:border-b lg:border-border',
           scrolled && 'lg:shadow-soft',
           categories.length === 0 && 'max-lg:border-b max-lg:border-border',
           categories.length === 0 && scrolled && 'max-lg:shadow-soft',
@@ -488,44 +500,87 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
               <ArrowLeft size={18} />
             </Button>
 
-            <button
-              onClick={() => setInfoOpen(true)}
-              className="flex items-center gap-2.5 flex-1 min-w-0 text-left rounded-xl -mx-1.5 px-1.5 py-1 hover:bg-muted/60 transition-colors"
-            >
-              <div className="size-9 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 text-primary font-black text-sm">
+            {/* Two sibling buttons, not one wrapping the other: the name opens
+                the info sheet and the line under it opens the location picker.
+                Nesting them would be invalid HTML and would leave the inner
+                control unreachable to a screen reader. */}
+            <div className="flex flex-1 min-w-0 items-center gap-2.5">
+              {/* Decorative only, and hidden below sm: measured at 375px the h1
+                  overflowed by exactly 36px, which is this tile's width. */}
+              <button
+                onClick={() => setInfoOpen(true)}
+                aria-label={`About ${shop.shop_name}`}
+                className="hidden sm:flex size-9 rounded-xl bg-primary/10 border border-primary/15 items-center justify-center shrink-0 text-primary font-black text-sm transition-colors hover:bg-primary/15"
+              >
                 {shop.shop_name.charAt(0)}
-              </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-[15px] leading-tight truncate text-foreground flex items-center gap-1">
-                  {shop.shop_name}
-                  <Info size={12} className="text-muted-foreground shrink-0" />
-                </h1>
-                {shop.delivery_enabled && (
-                  // min-w-0 + truncate on the label: without it, this row can wrap to two
-                  // lines on narrow phones and overflow the header's fixed h-14 row height
-                  // (the sticky offsets below now measure this height via ResizeObserver
-                  // rather than assuming one, but the row overflowing its own box is still
-                  // a visible clipping bug on its own).
-                  canDeliverHere ? (
-                    <p className="text-[11px] text-primary flex items-center gap-1 font-semibold min-w-0">
-                      <Bike size={10} className="shrink-0" /> <span className="truncate">Delivery available</span>
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold min-w-0">
-                      <Store size={10} className="shrink-0" /> <span className="truncate">Pickup only here</span>
-                    </p>
-                  )
+              </button>
+
+              <div className="min-w-0 flex-1">
+                {/* py-1 on both stacked buttons so they tile the h-14 row
+                    rather than leaving dead space between two ~18px targets.
+                    They can't reach 44px — two of them share a 56px row — but
+                    this takes every pixel that is actually available. */}
+                <button
+                  onClick={() => setInfoOpen(true)}
+                  className="flex max-w-full min-w-0 items-center gap-1 rounded-lg -mx-1 px-1 py-1 text-left transition-colors hover:bg-muted/60"
+                >
+                  <h1 className="truncate font-bold text-[15px] leading-tight text-foreground">{shop.shop_name}</h1>
+                  <Info size={12} className="shrink-0 text-muted-foreground" />
+                </button>
+
+                {/* min-w-0 + truncate: without it this row wraps to two lines on
+                    narrow phones and overflows the header's fixed row height. */}
+                {shop.delivery_enabled ? (
+                  <button
+                    onClick={() => setLocOpen(true)}
+                    aria-label="Change delivery location"
+                    className="group flex max-w-full min-w-0 items-center gap-1 rounded-lg -mx-1 px-1 py-1 text-left transition-colors hover:bg-muted/60"
+                  >
+                    {locationKnown && !canDeliverHere
+                      ? <Store size={10} className="shrink-0 text-muted-foreground" />
+                      : <Bike size={10} className={cn('shrink-0', locationKnown ? 'text-primary' : 'text-muted-foreground')} />}
+                    <span className={cn(
+                      'truncate text-[11px] font-semibold',
+                      !locationKnown ? 'text-muted-foreground' : canDeliverHere ? 'text-primary' : 'text-muted-foreground',
+                    )}>
+                      {/* Without a location we genuinely don't know whether this
+                          shop delivers to you — `canDeliverHere` defaults to true
+                          because the distance is null, so the old copy claimed
+                          "Delivery available" on no evidence. Ask instead. */}
+                      {!locationKnown
+                        ? 'Set location'
+                        : canDeliverHere
+                          ? `Delivery to ${shortLocationText(selected)}`
+                          : `Pickup only · ${shortLocationText(selected)}`}
+                    </span>
+                    <ChevronDown size={11} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-y-0.5" />
+                  </button>
+                ) : (
+                  <p className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                    <Store size={10} className="shrink-0" /> <span className="truncate">Pickup only</span>
+                  </p>
                 )}
               </div>
-              <Badge variant={open ? 'open' : 'closed'} className="ml-auto shrink-0 text-[11px]">
+
+              {/* When closed, this is the third place saying so on one screen
+                  — the banner below and every product's button already do. On
+                  mobile the name needs those pixels more, so only the positive
+                  "Open" state survives there. */}
+              <Badge variant={open ? 'open' : 'closed'} className={cn('ml-auto shrink-0 text-[11px]', !open && 'hidden lg:inline-flex')}>
                 <span className={cn('size-1.5 rounded-full', open ? 'bg-success animate-pulse-live' : 'bg-muted-foreground')} />
                 {open ? 'Open' : 'Closed'}
               </Badge>
-            </button>
+            </div>
 
+            {/* Orders is `lg:` only — the global BottomNav already carries it
+                on mobile, and the duplicate was squeezing the h1 until the
+                shop name truncated to "Sharma gene…" at 375px. Wishlist stays
+                at every size as a faster one-tap shortcut from mid-scroll,
+                without needing to reach down to the BottomNav — same
+                reasoning as the product detail page's mobile heart button. */}
             <div className="flex items-center gap-1.5 shrink-0">
               {user && (
-                <Button variant="ghost" size="icon-sm" onClick={() => router.push('/orders')} className="text-muted-foreground" aria-label="My orders">
+                <Button variant="ghost" size="icon-sm" onClick={() => router.push('/orders')} className="hidden lg:inline-flex text-muted-foreground" aria-label="My orders">
                   <ShoppingBag size={17} />
                 </Button>
               )}
@@ -553,15 +608,23 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             </div>
           </div>
 
-          {/* Location · Search bar & Filter button */}
+          {/* Search bar & Filter button.
+              The separate LocationChip that used to sit here is gone at every
+              size, not just mobile: the delivery line under the shop name is
+              now the address control, so keeping both would be two buttons
+              opening the same LocationPicker. It was also eating ~45% of this
+              row, which is what forced the placeholder to render as
+              "Search in Sha…". */}
           <div className="pb-3 flex gap-2 items-center">
-            <LocationChip className="shrink-0 max-w-[45%] sm:max-w-[240px] border-r border-input pr-2" />
             <ProductSearch
               value={search}
               onChange={v => { setQueryState({ q: v }); setActiveCategory('all') }}
               products={products}
               slug={slug}
-              placeholder={`Search in ${shop.shop_name}…`}
+              // Not `Search in ${shop.shop_name}…` — that never once fitted on a
+              // phone (it rendered as "Search in Sha…"), and the shop name is
+              // already the h1 directly above it.
+              placeholder="Search products…"
               className="flex-1"
             />
             <Button variant="ghost" size="default" onClick={() => setFilterOpen(true)} className="lg:hidden shrink-0 text-muted-foreground relative border-0 rounded-xl border-l border-input" aria-label={activeFilterCount > 0 ? `Open filters (${activeFilterCount} active)` : 'Open filters'}>
@@ -575,11 +638,14 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
       </header>
 
       {/* ── Main layout ── */}
-      {/* Extra bottom padding when the floating cart bar is visible so it can't
-          cover the last product row on mobile. */}
+      {/* Bottom padding clears the global BottomNav (fixed, mobile-only) plus
+          the floating cart bar on top of it when the cart has items, so
+          neither can cover the last product row. */}
       <div className={cn(
         'flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex gap-0 lg:gap-6 pt-0 lg:pt-4',
-        cart.count > 0 ? 'pb-28' : 'pb-4',
+        cart.count > 0
+          ? 'pb-[calc(4rem+7rem+env(safe-area-inset-bottom))] md:pb-28'
+          : 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-4',
       )}>
         {/* Sidebar (desktop) */}
         <aside className="hidden lg:flex flex-col w-52 xl:w-56 shrink-0 self-start sticky space-y-4" style={{ top: headerHeight }}>
@@ -652,8 +718,8 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             // edge/shadow on mobile. See the header className comment above.
             <div
               className={cn(
-                'lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-edge overflow-x-auto no-scrollbar transition-all duration-300 border-b border-border',
-                scrolled ? 'liquid-glass-strong shadow-soft' : 'liquid-glass',
+                'lg:hidden sticky z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 liquid-glass-strong liquid-edge overflow-x-auto no-scrollbar transition-all duration-300 border-b border-border',
+                scrolled && 'shadow-soft',
               )}
               style={{ top: headerHeight }}
             >
@@ -685,14 +751,16 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
             </div>
           )}
 
-          {/* Closed banner */}
+          {/* Closed banner — one line, not a 150px card. This is a persistent
+              condition you scroll past on every visit while the shop is shut,
+              and every product card already says "Closed" on its own button, so
+              the long second sentence was restating what the grid shows. */}
           {!open && (
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl border border-warning/25 bg-warning/10 animate-fade-in">
-              <Clock size={16} className="mt-0.5 shrink-0 text-warning" />
-              <div>
-                <p className="text-sm font-bold text-warning">Shop is currently closed</p>
-                <p className="text-xs mt-0.5 text-warning/90">You can browse products but cannot place orders right now.</p>
-              </div>
+            <div className="flex items-center gap-2.5 rounded-xl border border-warning/25 bg-warning/10 px-3 py-2 animate-fade-in">
+              <Clock size={14} className="shrink-0 text-warning" />
+              <p className="text-xs text-warning">
+                <span className="font-bold">Closed right now.</span> Browse and come back to order.
+              </p>
             </div>
           )}
 
@@ -743,7 +811,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
                     <div className="flex-1 h-px bg-border" />
                     <span className="text-xs text-muted-foreground font-medium">{catProducts.length} items</span>
                   </div>
-                  <div className="stagger grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="stagger grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                     {catProducts.map(product => (
                       <ProductCard
                         key={product.product_id}
@@ -765,9 +833,11 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
         </div>
       </div>
 
-      {/* Floating cart bar */}
+      {/* Floating cart bar. Sits above the global BottomNav (fixed, every
+          route, mobile-only) instead of at the true screen bottom, so the
+          two fixed bars stack rather than overlap. */}
       {cart.count > 0 && !cartOpen && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 p-3 pb-5 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none">
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-30 p-3 pb-5 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none">
           <button
             onClick={() => setCartOpen(true)}
             className="pointer-events-auto mx-auto max-w-sm w-full flex items-center justify-between gap-3 liquid-btn liquid-glass-interactive [--liquid-tint:var(--primary)] text-primary-foreground rounded-2xl px-4 py-3.5 shadow-lg active:scale-[0.98] animate-slide-up"
@@ -798,6 +868,7 @@ export function ShopClient({ slug, shop, products }: { slug: string; shop: Shop;
 
       {/* Shop Info Sheet */}
       <ShopInfoSheet shop={shop} open={infoOpen} onClose={() => setInfoOpen(false)} />
+      <LocationPicker open={locOpen} onOpenChange={setLocOpen} />
 
       {/* Mobile Filter Sheet */}
       <Sheet open={filterOpen} onOpenChange={setFilterOpen}>

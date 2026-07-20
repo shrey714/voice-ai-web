@@ -9,7 +9,6 @@ import { cn, formatPrice } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassIconButton } from '@/components/GlassIconButton'
-import BorderGlow from '@/components/BorderGlow'
 import { ArrowLeft, Heart, Package, Store, ShoppingCart } from 'lucide-react'
 
 function WishCard({
@@ -22,11 +21,7 @@ function WishCard({
 }) {
   const [imgErr, setImgErr] = useState(false)
   return (
-    // No hover:-translate-y-1 here — BorderGlow sets its own inline `transform`
-    // for its 3D layering trick, which would silently beat a translate-y
-    // class at equal specificity (same conflict already documented on
-    // ShopCard/ProductCard). The edge glow is the hover cue instead.
-    <BorderGlow className="group liquid-surface transition-shadow duration-300 hover:shadow-lg flex flex-col">
+    <div className="group liquid-surface relative flex flex-col overflow-hidden rounded-2xl border border-border transition-[border-color,box-shadow] duration-200 hover:border-primary hover:shadow-lg">
       {/* Whole-card tap → product. Stretched + keyboard-focusable, layered
           under the remove / add-to-cart buttons (z-10 vs z-20) so those stay
           clickable without nesting interactive elements inside a button. */}
@@ -69,7 +64,7 @@ function WishCard({
         color="linear-gradient(var(--destructive), color-mix(in oklch, var(--destructive), black 20%))"
         icon={<Heart size={14} className="fill-white" />}
       />
-    </BorderGlow>
+    </div>
   )
 }
 

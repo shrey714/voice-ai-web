@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQueryState, parseAsString } from 'nuqs'
@@ -8,7 +8,7 @@ import { isShopOpen } from '@/lib/shop'
 import { Shop } from '@/lib/types'
 import { useLocation } from '@/lib/location'
 import { useAllCarts } from '@/lib/cart'
-import { cn, seeded, distanceKm, formatDistance } from '@/lib/utils'
+import { cn, seeded, hashString, distanceKm, formatDistance } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -27,13 +27,16 @@ import { Reveal } from '@/components/Reveal'
 import { useHeaderScroll } from '@/lib/useScroll'
 import { useWishlist } from '@/lib/wishlist'
 import { LocationChip } from '@/components/LocationChip'
-import BorderGlow from '@/components/BorderGlow'
 import {
   Search, ShoppingBag, LogOut, Bike, Store, Sparkles, User,
-  ArrowRight, Clock, ShieldCheck, MapPin, Star, X, Heart, ShoppingBasket, Layers, TrendingUp,
+  Clock, MapPin, Star, X, Heart, ShoppingBasket, TrendingUp, BadgePercent,
+  LayoutGrid, Headphones, Shirt, Pizza, Pill, PencilRuler,
 } from 'lucide-react'
 
 /* ─────────────────────────── Promo hero carousel ────────────────────────── */
+// The hero is deliberately the loud element on this page — a saturated
+// gradient per slide with its own decorative shapes. It's the one place the
+// quiet editorial treatment used everywhere else below is NOT wanted.
 const PROMOS = [
   {
     tag: 'Local Shops, Delivered Fast',
@@ -89,7 +92,10 @@ function HeroCarousel() {
         <CarouselContent>
           {PROMOS.map((p, i) => (
             <CarouselItem key={i}>
-              <div className={cn('relative overflow-hidden bg-gradient-to-br text-white p-6 md:p-10 h-full min-h-[168px] md:min-h-[200px] flex flex-col justify-center', p.className)}>
+              {/* pb reserves the dot row's lane. Without it the subtitle wraps
+                  to two lines at 375px and the last line runs straight through
+                  the dots. */}
+              <div className={cn('relative overflow-hidden bg-gradient-to-br text-white px-6 pt-6 pb-11 md:p-10 md:pb-12 h-full min-h-[168px] md:min-h-[200px] flex flex-col justify-center', p.className)}>
                 <div className="relative z-10 max-w-lg">
                   <div className="flex items-center gap-2 mb-2.5">
                     <Sparkles size={15} className="text-star" />
@@ -129,78 +135,169 @@ function HeroCarousel() {
   )
 }
 
-/* ────────────────────────────── Trust strip ─────────────────────────────── */
-const TRUST = [
-  { Icon: Bike, label: 'Fast local delivery' },
-  { Icon: ShieldCheck, label: 'Trusted shops' },
-  { Icon: Clock, label: 'Live open hours' },
-]
-function TrustStrip() {
-  return (
-    <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-      {TRUST.map(({ Icon, label }) => (
-        <div key={label} className="relative flex flex-col items-center text-center gap-2 rounded-2xl border border-border liquid-surface px-2 py-3.5 sm:flex-row sm:text-left sm:gap-2.5 sm:px-3">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-            <Icon size={16} />
-          </span>
-          <span className="text-xs sm:text-sm font-semibold text-foreground leading-tight">{label}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ───────────────────────── Browse by category ───────────────────────────── */
+/* ───────────────────────── Category tabs (in header) ────────────────────── */
 // Deep-links into the existing shop search (matches shop name/description) —
 // a lightweight "browse" entry point rather than a real product-category
 // filter, since shops (not products) are what this page lists.
+//
+// `term: ''` is the "All" tab — clearing the search *is* showing everything,
+// so it needs no special-casing in the click handler or the active check.
+//
+// `tint` is the wayfinding colour from globals.css. Icons stay in full colour
+// whether or not the tab is selected (that's what makes a category rail
+// scannable — you find "Food" by its orange, not by reading six labels);
+// selection is carried by opacity, label weight, and the sliding bar.
 const BROWSE_CATEGORIES = [
-  { label: 'Grocery', Icon: ShoppingBasket, term: 'grocery' },
-  { label: 'Electronics', Icon: Store, term: 'electronics' },
-  { label: 'Fashion', Icon: Sparkles, term: 'fashion' },
-  { label: 'Food', Icon: Bike, term: 'food' },
-  { label: 'Pharmacy', Icon: ShieldCheck, term: 'pharmacy' },
-  { label: 'Stationery', Icon: MapPin, term: 'stationery' },
+  { label: 'All', Icon: LayoutGrid, term: '', tint: null },
+  { label: 'Grocery', Icon: ShoppingBasket, term: 'grocery', tint: '--cat-grocery' },
+  { label: 'Electronics', Icon: Headphones, term: 'electronics', tint: '--cat-electronics' },
+  { label: 'Fashion', Icon: Shirt, term: 'fashion', tint: '--cat-fashion' },
+  { label: 'Food', Icon: Pizza, term: 'food', tint: '--cat-food' },
+  { label: 'Pharmacy', Icon: Pill, term: 'pharmacy', tint: '--cat-pharmacy' },
+  { label: 'Stationery', Icon: PencilRuler, term: 'stationery', tint: '--cat-stationery' },
 ]
-function CategoryStrip({ onPick }: { onPick: (term: string) => void }) {
+
+/**
+ * Persistent category rail docked in the header. Not a `role="tablist"` —
+ * these filter the shop list in place rather than swapping panels, so they're
+ * toggle buttons with `aria-pressed` instead of tabs promising a tabpanel
+ * relationship that doesn't exist.
+ *
+ * Free-text search (e.g. "milk") matches no tab, so nothing is highlighted —
+ * including "All", which would otherwise be a lie about what's on screen.
+ */
+/** How far the sliding bar is inset from each edge of its tab, in px. */
+const BAR_INSET = 8
+
+function CategoryTabs({ active, onPick }: { active: string; onPick: (term: string) => void }) {
+  const current = active.trim().toLowerCase()
+  const activeIndex = BROWSE_CATEGORIES.findIndex(c => c.term === current)
+  // The bar picks up the selected category's colour, so the moving element
+  // and the tile it lands on read as the same object. "All" has no colour of
+  // its own and falls back to `foreground`.
+  const activeTint = activeIndex >= 0 ? BROWSE_CATEGORIES[activeIndex].tint : null
+
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [bar, setBar] = useState<{ left: number; width: number } | null>(null)
+  // Transitions stay off until the bar has been placed once, otherwise it
+  // visibly flies in from x=0 on every load.
+  const [slides, setSlides] = useState(false)
+
+  // Measured rather than derived from the tab index: label widths differ per
+  // category (and shift with the font swap), so any arithmetic guess drifts.
+  useEffect(() => {
+    const btn = btnRefs.current[activeIndex]
+    // No tab matches (free-text search) — leave the bar where it was and let
+    // the opacity class below fade it out, so it doesn't jump to 0 first.
+    if (!btn) return
+    const measure = () => setBar({
+      left: btn.offsetLeft + BAR_INSET,
+      width: Math.max(0, btn.offsetWidth - BAR_INSET * 2),
+    })
+    measure()
+    // Catches the Inter font swap and any container resize, both of which
+    // change offsetWidth after the initial measure.
+    const ro = new ResizeObserver(measure)
+    ro.observe(btn)
+    return () => ro.disconnect()
+  }, [activeIndex])
+
+  useEffect(() => {
+    if (!bar || slides) return
+    const id = requestAnimationFrame(() => setSlides(true))
+    return () => cancelAnimationFrame(id)
+  }, [bar, slides])
+
   return (
-    <div>
-      <SectionHeader title="Browse by category" icon={Layers} className="mb-3" />
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-6">
-        {BROWSE_CATEGORIES.map(({ label, Icon, term }) => (
+    <div
+      role="group"
+      aria-label="Browse by category"
+      className="relative flex gap-0.5 overflow-x-auto no-scrollbar -mx-4 px-2 sm:mx-0 sm:px-0"
+    >
+      {BROWSE_CATEGORIES.map(({ label, Icon, term, tint }, i) => {
+        const isActive = current === term
+        return (
           <button
             key={label}
+            ref={el => { btnRefs.current[i] = el }}
             onClick={() => onPick(term)}
-            className="flex flex-col items-center gap-2 shrink-0 w-20 sm:w-auto rounded-2xl liquid-surface liquid-glass-interactive px-2 py-3.5 press"
+            aria-pressed={isActive}
+            className={cn(
+              'group relative flex shrink-0 flex-col items-center gap-1 rounded-t-lg px-3 pt-1 pb-1.5 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
           >
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Icon size={18} />
+            <span
+              className={cn(
+                'flex size-8 items-center justify-center rounded-xl transition-all duration-200',
+                isActive ? 'scale-105' : 'group-hover:scale-105',
+              )}
+              style={tint ? {
+                background: `color-mix(in oklch, var(${tint}) ${isActive ? 20 : 12}%, transparent)`,
+                color: `var(${tint})`,
+              } : undefined}
+            >
+              <Icon size={19} strokeWidth={isActive ? 2.3 : 2} className={cn(!tint && 'text-current')} />
             </span>
-            <span className="text-[11px] font-semibold text-foreground text-center leading-tight">{label}</span>
+            <span
+              className={cn('whitespace-nowrap text-[11px] leading-none', isActive ? 'font-bold' : 'font-semibold')}
+              style={isActive && tint ? { color: `var(${tint})` } : undefined}
+            >
+              {label}
+            </span>
           </button>
-        ))}
-      </div>
+        )
+      })}
+
+      {/* One shared bar that travels between tabs, rather than one per tab
+          fading in/out — that's what makes the movement readable.
+          `bottom-0`, not a negative offset: `overflow-x-auto` computes
+          overflow-y to `auto` too, so anything below the box gets clipped.
+          Being absolute inside the scroll container, it scrolls with the tabs. */}
+      <span
+        aria-hidden
+        style={bar ? {
+          transform: `translateX(${bar.left}px)`,
+          width: bar.width,
+          background: activeTint ? `var(${activeTint})` : 'var(--foreground)',
+        } : undefined}
+        className={cn(
+          'pointer-events-none absolute bottom-0 left-0 h-[3px] rounded-full',
+          slides && 'transition-[transform,width,opacity,background-color] duration-300 ease-out motion-reduce:transition-none',
+          bar && activeIndex >= 0 ? 'opacity-100' : 'opacity-0',
+        )}
+      />
     </div>
   )
 }
 
-/* ──────────────────────────── Promo banner strip ────────────────────────── */
-const PROMO_STRIP = [
-  { Icon: Bike, title: 'Free delivery', subtitle: 'On orders above ₹499 at participating shops' },
-  { Icon: Sparkles, title: 'New shops weekly', subtitle: "More neighbourhood stores joining all the time" },
-  { Icon: Heart, title: 'Refer & save', subtitle: 'Share ShopNear with a friend' },
+/* ──────────────────────────────── Offer rail ────────────────────────────── */
+const OFFERS = [
+  { Icon: Bike, title: 'Free delivery', subtitle: 'On orders above ₹499', tint: '--cat-grocery' },
+  { Icon: Sparkles, title: 'New shops weekly', subtitle: 'More stores joining', tint: '--cat-electronics' },
+  { Icon: Heart, title: 'Refer & save', subtitle: 'Share with a friend', tint: '--cat-fashion' },
 ]
-function PromoStrip() {
+// Was three stacked full-width panels costing 255px on a 375px screen — a
+// quarter of the first scroll spent on copy nobody came for. As a horizontal
+// rail it's ~76px and behaves like Blinkit's offer strip: peek the third card
+// so the row reads as scrollable without needing an affordance.
+function OfferRail() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      {PROMO_STRIP.map(({ Icon, title, subtitle }) => (
-        <div key={title} className="relative flex items-center gap-3 rounded-2xl liquid-surface border border-border p-3.5">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0">
-            <Icon size={17} />
+    <div className="-mx-4 flex gap-3 overflow-x-auto no-scrollbar px-4 pb-0.5 sm:mx-0 sm:px-0">
+      {OFFERS.map(({ Icon, title, subtitle, tint }) => (
+        <div
+          key={title}
+          className="flex w-[212px] shrink-0 items-center gap-3 rounded-2xl border border-border bg-card p-3"
+        >
+          <span
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `color-mix(in oklch, var(${tint}) 14%, transparent)`, color: `var(${tint})` }}
+          >
+            <Icon size={18} strokeWidth={2} />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground leading-tight">{title}</p>
-            <p className="text-xs text-muted-foreground leading-tight mt-0.5 truncate">{subtitle}</p>
+            <p className="truncate text-[13px] font-bold tracking-tight text-foreground">{title}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
       ))}
@@ -211,124 +308,142 @@ function PromoStrip() {
 /* ────────────────────────────── Shop card ───────────────────────────────── */
 function ShopCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <Skeleton className="h-24 w-full rounded-none" />
-      <div className="p-4 space-y-2.5">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <Skeleton className="h-28 w-full rounded-none" />
+      <div className="space-y-2 p-3.5">
         <Skeleton className="h-4 w-3/5" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-9 w-full rounded-xl mt-3" />
+        <Skeleton className="h-3 w-4/5" />
+        <Skeleton className="h-3 w-2/5" />
       </div>
+      <Skeleton className="h-8 w-full rounded-none" />
     </div>
   )
 }
+
+// Each shop gets a stable colour off the wayfinding ramp, seeded from its id
+// so it never changes between renders or sessions. Shops have no photography
+// in this schema, so colour + monogram is the only thing making a grid of
+// them scannable — without it every card is an identical grey rectangle.
+const SHOP_TINTS = [
+  '--cat-grocery', '--cat-electronics', '--cat-fashion',
+  '--cat-food', '--cat-pharmacy', '--cat-stationery',
+]
 
 function ShopCard({ shop, featured = false, distance = null, cartCount = 0 }: { shop: Shop; featured?: boolean; distance?: number | null; cartCount?: number }) {
   const open = isShopOpen(shop)
   const initial = shop.shop_name.charAt(0).toUpperCase()
   const rating = seeded(shop.id + 'r', 4.0, 4.9, 1)
   const eta = seeded(shop.id + 'e', 12, 35)
+  // `hashString % len`, NOT `seeded(…, 0, len-1)`: seeded() rounds, so the
+  // first and last buckets are half as wide as the middle ones and the ramp
+  // collapses toward the centre — six shops in a row all came out indigo.
+  const tint = SHOP_TINTS[hashString(shop.id + 't') % SHOP_TINTS.length]
   const outOfDeliveryRange = shop.delivery_enabled && shop.delivery_radius_km != null && distance != null && distance > shop.delivery_radius_km
 
-  const card = (
+  return (
     <Link
       href={`/${shop.shop_slug}`}
-      aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}`}
+      aria-label={`${shop.shop_name} — ${open ? 'open' : 'closed'}, rated ${rating} out of 5`}
       className={cn(
-        'group block text-left rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-float hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99] w-full h-full',
-        featured && 'border-gradient shadow-soft',
+        'group flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-card text-left transition-all duration-200',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.99]',
+        'hover:border-primary hover:shadow-float',
+        featured ? 'border-primary/40' : 'border-border',
       )}
     >
-      {/* Banner */}
-      <div className={cn(
-        'h-24 flex items-center justify-center relative overflow-hidden',
-        open ? 'bg-gradient-to-br from-primary/15 to-primary/5' : 'bg-muted',
-      )}>
-        <span className={cn(
-          'text-4xl font-black tracking-tighter transition-transform duration-300 group-hover:scale-110',
-          open ? 'text-primary' : 'text-muted-foreground',
-        )}>
+      {/* ── Banner ── */}
+      <div
+        className="relative h-28 shrink-0 overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, color-mix(in oklch, var(${tint}) 30%, var(--card)), color-mix(in oklch, var(${tint}) 8%, var(--card)))`,
+        }}
+      >
+        <span
+          aria-hidden
+          className="absolute inset-0 flex items-center justify-center text-5xl font-black tracking-tighter transition-transform duration-300 group-hover:scale-110"
+          style={{ color: `color-mix(in oklch, var(${tint}) 55%, transparent)` }}
+        >
           {initial}
         </span>
-        <Badge variant={open ? 'open' : 'closed'} className="absolute top-2.5 right-2.5 text-[11px]">
-          <span className={cn('size-1.5 rounded-full', open ? 'bg-success animate-pulse-live' : 'bg-muted-foreground')} />
-          {open ? 'Open' : 'Closed'}
-        </Badge>
+
+        {/* Scrim sits before the badges so they render on top of it — the
+            rating still reads on a closed shop, which is exactly what you
+            use to decide whether it's worth coming back for. */}
+        {!open && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+            <span className="rounded-lg bg-foreground/85 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-background">
+              Closed
+            </span>
+          </div>
+        )}
+
         {featured && (
-          <Badge variant="default" className="absolute top-2.5 left-2.5 text-[10px] gap-1"><Sparkles size={10} /> Featured</Badge>
+          <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md bg-foreground px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-background">
+            <Sparkles size={9} /> Featured
+          </span>
         )}
-        {cartCount > 0 && (
-          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 shadow-sm">
-            <ShoppingBasket size={10} /> {cartCount} in cart
-          </div>
-        )}
+
+        {/* Zomato-style solid rating chip. Rating is the single most-scanned
+            value on a listing card, so it gets a filled block rather than
+            competing as one more item in a grey meta row. */}
+        <span className="absolute right-2.5 top-2.5 flex items-center gap-0.5 rounded-md bg-success px-1.5 py-0.5 text-[11px] font-black text-success-foreground shadow-sm">
+          {rating}<Star size={9} className="fill-current" />
+        </span>
+
+        {/* The Blinkit/Zepto move: lead with time-to-door, not with the shop. */}
         {open && (
-          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-full bg-background/90 backdrop-blur px-2 py-0.5 text-[11px] font-bold text-foreground shadow-sm">
-            <Star size={10} className="fill-star text-star" />
-            {rating}
-          </div>
+          <span className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-lg bg-background/95 px-2 py-1 text-[11px] font-black text-foreground shadow-sm backdrop-blur">
+            <Bike size={11} className="text-primary" />{eta} min
+          </span>
         )}
+
+        {cartCount > 0 && (
+          <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-[10px] font-black text-primary-foreground shadow-sm">
+            <ShoppingBasket size={10} />{cartCount}
+          </span>
+        )}
+
       </div>
 
-      {/* Body */}
-      <div className="p-4">
-        <h3 className="font-bold text-[15px] text-foreground leading-tight mb-1 truncate group-hover:text-primary transition-colors">
+      {/* ── Body ── */}
+      <div className="flex flex-1 flex-col p-3.5">
+        <h3 className="truncate text-[15px] font-extrabold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary">
           {shop.shop_name}
         </h3>
         {shop.description && (
-          <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2 min-h-8">{shop.description}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{shop.description}</p>
         )}
-        <div className="flex items-center gap-2 flex-wrap text-[11px] mb-3.5">
-          {shop.delivery_enabled && (
-            outOfDeliveryRange ? (
-              <span className="flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-semibold">
-                <Store size={11} /> Pickup only
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 rounded-full bg-primary/8 text-primary px-2 py-0.5 font-semibold">
-                <Bike size={11} /> Delivery
-              </span>
-            )
-          )}
-          {open && (
-            <span className="flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-semibold">
-              <Clock size={10} /> {eta} min
-            </span>
-          )}
-          {shop.min_order_amount > 0 && (
-            <span className="rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-semibold">Min ₹{shop.min_order_amount}</span>
-          )}
+        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-semibold text-muted-foreground">
           {distance != null && (
-            <span className="flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-semibold">
-              <MapPin size={10} /> {formatDistance(distance)}
-            </span>
+            <span className="flex items-center gap-1"><MapPin size={10} strokeWidth={2} />{formatDistance(distance)}</span>
           )}
-        </div>
-        <div className={cn(
-          'flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200',
-          open
-            ? 'bg-primary text-primary-foreground group-hover:brightness-110'
-            : 'bg-muted text-muted-foreground',
-        )}>
-          <span>{open ? 'Order Now' : 'Currently Closed'}</span>
-          {open && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
+          {distance != null && shop.min_order_amount > 0 && <span aria-hidden className="text-border">•</span>}
+          {shop.min_order_amount > 0 && <span>Min ₹{shop.min_order_amount}</span>}
+          {!open && <span className="flex items-center gap-1"><Clock size={10} strokeWidth={2} />Reopens later</span>}
         </div>
       </div>
+
+      {/* ── Offer strip ──
+          The dashed rule is the Swiggy/Zomato coupon convention — it reads as
+          "torn off" and separates a promise from the shop's own facts. */}
+      {shop.delivery_enabled && (
+        <div
+          className={cn(
+            'mt-auto flex items-center gap-1.5 border-t border-dashed px-3 py-2 text-[11px] font-extrabold',
+            outOfDeliveryRange
+              ? 'border-border bg-muted/60 text-muted-foreground'
+              : 'border-primary/25 bg-primary/[0.07] text-primary-text',
+          )}
+        >
+          {/* Kept to ~19 characters and `truncate`d: at the 2-up mobile width
+              the card is ~165px, and anything longer wrapped this strip onto
+              a second line and broke the card's bottom alignment. */}
+          {outOfDeliveryRange
+            ? <><Store size={11} strokeWidth={2.2} className="shrink-0" /><span className="truncate">Pickup only</span></>
+            : <><BadgePercent size={11} strokeWidth={2.2} className="shrink-0" /><span className="truncate">Free delivery ₹499+</span></>}
+        </div>
+      )}
     </Link>
-  )
-
-  // Featured cards already have their own static border-gradient — stacking
-  // the mouse-tracking glow on top would be visual overkill on the one card
-  // type that's already meant to stand out. Regular cards get the glow as
-  // their hover treatment instead of the lift (BorderGlow sets its own
-  // `transform` inline for the 3D layering trick, which would silently
-  // fight a `hover:-translate-y-1` class at equal specificity — same
-  // conflict-class as the `position` gotcha noted on .liquid-glass).
-  if (featured) return card
-
-  return (
-    <BorderGlow className="liquid-surface rounded-2xl transition-shadow duration-300 hover:shadow-float">
-      {card}
-    </BorderGlow>
   )
 }
 
@@ -406,12 +521,26 @@ function HomePageInner() {
     <div className="relative min-h-screen">
       {/* ── Header ── */}
       <header className={cn(
-        'sticky top-0 z-40 border-b liquid-edge transition-all duration-300',
-        scrolled ? 'liquid-glass-strong border-border shadow-soft' : 'liquid-glass border-transparent',
+        // Always liquid-glass-strong (same blur/opacity as BottomNav) —
+        // it used to fall back to the weaker `.liquid-glass` at scroll-top,
+        // which read as a visibly worse blur than the rest of the app's
+        // fixed/sticky chrome.
+        //
+        // `fixed`, not `sticky` — backdrop-filter blur on a sticky element
+        // doesn't repaint reliably while its stuck content scrolls
+        // underneath (ghosting/stale blur in Safari and some Chrome
+        // versions); `fixed` is what BottomNav already uses and renders
+        // cleanly. The measured spacer right after `</header>` reserves its
+        // flow height (it changes with `scrolled`, see above).
+        'sticky top-0 z-40 border-b liquid-glass-strong liquid-edge transition-all duration-300',
+        scrolled ? 'border-border shadow-soft' : 'border-transparent',
         hidden && '-translate-y-full',
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={cn('flex items-center gap-3 transition-all duration-300', scrolled ? 'h-14' : 'h-16')}>
+          {/* Shorter on mobile than on desktop: the sticky header was 171px
+              tall on a 375px screen, a fifth of the viewport permanently
+              spent on chrome. */}
+          <div className={cn('flex items-center gap-3 transition-all duration-300', scrolled ? 'h-11 sm:h-14' : 'h-12 sm:h-16')}>
             <Link href="/" aria-label="ShopNear home" className="flex items-center gap-2 shrink-0">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Store size={17} />
@@ -496,7 +625,7 @@ function HomePageInner() {
           </div>
 
           {/* Mobile search row */}
-          <div className="sm:hidden pb-3" role="search">
+          <div className="sm:hidden pb-2" role="search">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
@@ -513,37 +642,31 @@ function HomePageInner() {
               )}
             </div>
           </div>
+
+          {/* Category rail — lives in the header (not the page body) so it
+              stays reachable while scrolling the shop list, and so picking a
+              category doesn't hide the control that set it. */}
+          <CategoryTabs active={search} onPick={setSearch} />
         </div>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <main className="relative z-10 mx-auto max-w-7xl space-y-5 px-4 py-4 sm:px-6 lg:px-8">
         <h1 className="sr-only">Order from local shops near you</h1>
-        {/* Promo/trust/stats are browse-mode chrome — hide them while searching
-            so results sit at the top of the page instead of below the fold. */}
+        {/* Browse-mode chrome — hidden while searching so results sit at the
+            top of the page instead of below the fold.
+
+            What used to live here: hero + a 255px promo panel + a stats row +
+            a trust row = 534px, which pushed the first shop card to y=948 on
+            an 812px screen. You scrolled a full viewport of marketing before
+            seeing a single shop. The stats row duplicated the counts already
+            in each section header, and the trust row duplicated the footer's
+            three trust items verbatim — both are gone rather than restyled. */}
         {!search && (
           <>
             <HeroCarousel />
-            <PromoStrip />
-            <TrustStrip />
-            <CategoryStrip onPick={term => setSearch(term)} />
+            <OfferRail />
             <RecentlyViewed title="Continue shopping" />
           </>
-        )}
-
-        {/* Stats */}
-        {!search && !loading && shops.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 animate-fade-in">
-            {[
-              { label: 'Shops', value: shops.length },
-              { label: 'Open Now', value: shops.filter(s => isShopOpen(s)).length },
-              { label: 'With Delivery', value: shops.filter(s => s.delivery_enabled).length },
-            ].map(stat => (
-              <div key={stat.label} className="relative rounded-2xl border border-border liquid-surface p-4 text-center">
-                <p className="text-2xl sm:text-3xl font-black text-primary tracking-tight">{stat.value}</p>
-                <p className="text-xs text-muted-foreground font-medium mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
         )}
 
         {/* Trending shops — top-rated among already-loaded shops (client-side
@@ -553,7 +676,7 @@ function HomePageInner() {
             <SectionHeader title="Trending near you" icon={TrendingUp} />
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
               {trendingShops.map(shop => (
-                <div key={shop.id} className="w-64 shrink-0">
+                <div key={shop.id} className="w-[172px] shrink-0 sm:w-56">
                   <ShopCard shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />
                 </div>
               ))}
@@ -563,7 +686,7 @@ function HomePageInner() {
 
         {/* Shops */}
         {loading ? (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {[...Array(8)].map((_, i) => <ShopCardSkeleton key={i} />)}
           </div>
         ) : loadError ? (
@@ -589,7 +712,7 @@ function HomePageInner() {
                   icon={Sparkles}
                   badge={<Badge variant="open" className="text-[10px]"><span className="size-1.5 bg-success rounded-full animate-pulse-live" />{openShops.length}</Badge>}
                 />
-                <div className="stagger grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4">
+                <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
                   {openShops.map((shop, i) => <ShopCard key={shop.id} shop={shop} featured={i === 0} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>
@@ -602,7 +725,9 @@ function HomePageInner() {
                   icon={Clock}
                   badge={<Badge variant="secondary" className="text-[10px]">{closedShops.length}</Badge>}
                 />
-                <div className="stagger grid grid-cols-[repeat(auto-fit,minmax(260px,320px))] gap-4 opacity-90">
+                {/* The dimming that used to live here now sits on the card
+                    itself (`!open && opacity-80`), so it isn't applied twice. */}
+                <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
                   {closedShops.map(shop => <ShopCard key={shop.id} shop={shop} distance={distanceFor(shop)} cartCount={cartCountFor(shop)} />)}
                 </div>
               </Reveal>

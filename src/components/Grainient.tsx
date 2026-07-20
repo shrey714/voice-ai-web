@@ -26,6 +26,9 @@ interface GrainientProps {
   color2?: string;
   color3?: string;
   className?: string;
+  /** Fired once the first frame is actually on the canvas (see the call site
+   *  in Effect 1) — lets a parent cross-fade this in instead of popping it. */
+  onReady?: () => void;
 }
 
 const hexToRgb = (hex: string): [number, number, number] => {
@@ -160,9 +163,16 @@ const Grainient: React.FC<GrainientProps> = ({
   color1 = '#53eafd',
   color2 = '#00b8db',
   color3 = '#007595',
-  className = ''
+  className = '',
+  onReady
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Held in a ref so Effect 1 can reach the latest callback without taking
+  // `onReady` as a dependency — that would rebuild the whole WebGL context
+  // every time the parent re-renders with a fresh inline arrow.
+  const onReadyRef = useRef(onReady);
+  useEffect(() => { onReadyRef.current = onReady; });
 
   // Effect 1: build WebGL context once, pause when offscreen / tab hidden
   useEffect(() => {
@@ -231,6 +241,11 @@ const Grainient: React.FC<GrainientProps> = ({
     const ro = new ResizeObserver(setSize);
     ro.observe(container);
     setSize();
+
+    // setSize() has drawn frame 0, but those pixels don't reach the screen
+    // until the next paint — announce readiness after it so the parent's
+    // fade-in starts against a canvas that already has content on it.
+    requestAnimationFrame(() => onReadyRef.current?.());
 
     let raf = 0;
     let isVisible = true;

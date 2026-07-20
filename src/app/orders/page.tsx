@@ -110,6 +110,20 @@ function OrdersPageInner() {
 
   const activeCount = orders.filter(o => activeStatuses.includes(o.status)).length
 
+  // Measured, not guessed — the filter-tabs row makes the header's total
+  // height vary with content, and a fixed spacer would drift from it.
+  const headerRef = useRef<HTMLElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const measure = () => setHeaderHeight(el.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // Re-add a past order's items to that shop's basket, then land on the shop so
   // the customer reviews the live catalog (prices/stock may have moved) before
   // checkout re-validates. Mirrors the order-tracking "Order Again" flow.
@@ -126,8 +140,14 @@ function OrdersPageInner() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
+      {/* Header. `fixed`, not `sticky` — backdrop-filter blur on a sticky
+          element doesn't repaint reliably while its stuck content scrolls
+          underneath (visible as ghosting/stale blur in Safari and some
+          Chrome versions); `fixed` is what BottomNav already uses and
+          renders cleanly. The measured spacer below reserves its flow
+          height (the filter-tabs row makes it vary, so it's not a fixed
+          Tailwind height like the simpler headers elsewhere). */}
+      <header ref={headerRef} className="fixed top-0 inset-x-0 z-40 liquid-glass-strong liquid-edge border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-14">
             <Button variant="ghost" size="icon-sm" onClick={() => router.push('/')} className="text-muted-foreground -ml-1" aria-label="Back to shops">
@@ -165,6 +185,7 @@ function OrdersPageInner() {
           </div>
         </div>
       </header>
+      <div style={{ height: headerHeight }} aria-hidden />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {loading ? (
